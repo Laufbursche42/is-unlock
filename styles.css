@@ -1,4 +1,4 @@
-/* SOFLOW SO4 Tool. Palette and theme mechanics taken 1:1 from the Laufbursche Edition template.
+/* Laufbursche iScooter Tool. Palette and theme mechanics from the Laufbursche Edition template.
    Dark is the default; the light set below is switched in by data-theme on <html>. */
 :root {
   --bg: #0A0C10; --card: #111420; --line: #1C2035; --text: #E4EDF6; --label: #C6D2E2;
@@ -100,6 +100,9 @@ pre#log { margin: 0; background: var(--field); border: 1px solid var(--line); bo
 .log-rx { color: var(--rx); }
 .log-ok { color: var(--good); }
 .log-err { color: var(--bad); }
+.log-opts { margin: 0 0 8px; }
+.log-opt { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 5px; margin: 0 0 4px; }
+.log-opt input[type="checkbox"] { width: 16px; height: 16px; margin: 0; }
 .foot { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 4px 0 2px; }
 .foot-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 16px; }
 .foot a { color: var(--accent); font-size: 12px; text-decoration: none; }
@@ -112,14 +115,11 @@ code { font-family: var(--mono); font-size: 12px; background: var(--field); bord
 .set-row { display: grid; grid-template-columns: minmax(0, 1fr) 10.5rem; gap: 10px; align-items: center; }
 .set-row label { grid-column: 1 / -1; }
 .set-row input, .set-row select, .set-row button { width: 100%; flex: none; }
-/* Open and eKFV sit side by side in two columns; each field stacks its label over its input. */
-.speed-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
-.speed-cols .set-row { grid-template-columns: 1fr; }
 
-/* Ride modes side by side (eco / normal / sport), not stacked. The active mode is highlighted. */
-.mode-cols { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-.mode-cols .mode-btn { width: 100%; text-transform: capitalize; }
-.mode-cols .mode-btn.active { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+/* Two-column field pair (open / eKFV): label stacked above the input, side by side. */
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.two .fld { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.two .fld input { width: 100%; flex: none; }
 
 /* Document viewer. Only the open dialog is a flex column. */
 dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--card);
@@ -163,7 +163,7 @@ dialog::backdrop { background: var(--backdrop); }
   border-top: 1px solid var(--line); }
 .doc-foot button { flex: 0 0 auto; padding: 10px 22px; }
 
-/* Shortcut links (Verknuepfungen) - exakt nach trfm-unlock: vertikaler Stack, URL-Box in --value. */
+/* Shortcut links: vertical stack, URL box in --value. */
 .linkrow { display: flex; flex-direction: column; gap: 5px; }
 .linkrow .lbl { color: var(--label); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
 .copy { margin: 0; font-family: var(--mono); font-size: 11.5px; background: var(--field); border: 1px solid var(--line);
@@ -181,15 +181,11 @@ dialog::backdrop { background: var(--backdrop); }
 #help { max-width: 520px; }
 #help #help-body { margin: 0; }
 
-/* is-unlock additions */
-.raw-in { min-width: 16rem; }
-#langs a { margin: 0 .2rem; }
-#langs a.active { font-weight: 700; text-decoration: underline; }
-
-/* Bluetooth-log analyser: file picker + frame listing reuse the field/log styles. */
-input[type="file"] { padding: 8px 10px; font-size: 12px; cursor: pointer; }
-input[type="file"]::file-selector-button {
-  background: var(--chip); color: var(--text); border: 1px solid var(--line); border-radius: 8px;
-  padding: 6px 10px; margin-right: 10px; font: inherit; cursor: pointer;
-}
-#la-out { max-height: 320px; }
+/* iScooter tool: control sub-groups inside a card, expert raw input, live-empty hint. */
+.foot-copy { color: var(--accent); font-size: 12px; text-decoration: none; }
+.ctrl-block { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; }
+.ctrl-block + .ctrl-block { border-top: 1px solid var(--line); padding-top: 12px; }
+.ctrl-block h3 { margin: 0; font-size: 12px; color: var(--label); text-transform: uppercase;
+  letter-spacing: .06em; font-weight: 700; }
+.raw-in { width: 100%; flex: none; }
+input[type="file"] { padding: 8px 10px; font-size: 12px; }

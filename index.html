@@ -1,172 +1,223 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
-<title>iScooter unlock</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title data-t="pageTitle">Laufbursche iScooter Tool</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png">
-<link rel="stylesheet" href="styles.css?v=2">
+<link rel="stylesheet" href="styles.css?v=3">
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>iScooter unlock</h1>
+    <h1>Laufbursche <span data-t="brandSub"></span></h1>
     <div class="head-right">
-      <span class="status" id="status" data-t="stDisconnected">nicht verbunden</span>
+      <span class="status" id="status" data-state="disconnected" data-t="stDisconnected"></span>
       <div class="head-tools">
-        <button class="theme-btn" id="btn-theme" title="Theme">◐</button>
-        <span class="langs" id="langs"></span>
+        <button type="button" class="theme-btn" id="btn-theme" aria-label="Theme">&#9728;</button>
+        <div class="langs" id="langs" role="group" aria-label="Language">
+          <button type="button" data-lang="de" aria-pressed="true">DE</button>
+          <button type="button" data-lang="en" aria-pressed="false">EN</button>
+        </div>
       </div>
     </div>
   </header>
 
-  <p class="warn platform-note" id="platform-note"></p>
+  <p class="warn" id="platform-note" data-t="platformNote" hidden></p>
 
-  <section class="card">
-    <h2 data-t="s1Title">1. Modell und Verbindung</h2>
+  <div class="card">
+    <h2 data-t="s1Title"></h2>
+    <p class="hint" data-t="sub"></p>
+    <p class="hint" data-t="startHintGuide"></p>
+    <p class="warn" data-t="expWarn"></p>
+    <p class="hint" data-t="ownDevice"></p>
+  </div>
+
+  <div class="card">
+    <h2 data-t="s2Title"></h2>
     <div class="set-row">
-      <label for="model-in" data-t="modelLabel">Modell</label>
+      <label for="model-in" data-t="modelLabel"></label>
       <select id="model-in"></select>
     </div>
-    <p class="hint" id="enc-state"></p>
+    <p class="hint" data-t="modelHint"></p>
     <div class="btns">
-      <button class="primary span2" id="btn-conn" data-t="btnConnect">Verbinden</button>
+      <button class="primary span2" id="btn-conn" data-t="btnConnect"></button>
     </div>
     <p class="hint" id="devinfo"></p>
-  </section>
+    <p class="hint" id="enc-state"></p>
+    <p class="hint" data-t="controlsHint"></p>
+  </div>
 
-  <section class="card">
-    <h2 data-t="liveTitle">2. Telemetrie live</h2>
-    <div class="grid">
-      <div class="tile"><span class="tk" data-t="tSpeed">Tempo</span><b id="t-speed">-</b></div>
-      <div class="tile"><span class="tk" data-t="tBatt">Akku</span><b id="t-batt">-</b></div>
-      <div class="tile"><span class="tk" data-t="tVolt">Spannung</span><b id="t-volt">-</b></div>
-      <div class="tile"><span class="tk" data-t="tCurr">Strom/Leistung</span><b id="t-curr">-</b></div>
-      <div class="tile"><span class="tk" data-t="tTrip">Fahrt</span><b id="t-trip">-</b></div>
-      <div class="tile"><span class="tk" data-t="tTotal">Gesamt</span><b id="t-total">-</b></div>
-      <div class="tile"><span class="tk" data-t="tMax">Max-Tempo</span><b id="t-max">-</b></div>
-      <div class="tile"><span class="tk" data-t="tLock">Sperre</span><b id="t-lock">-</b></div>
-      <div class="tile"><span class="tk" data-t="tErr">Fehler</span><b id="t-err">-</b></div>
-      <div class="tile"><span class="tk" data-t="tFw">Firmware</span><b id="t-fw">-</b></div>
-    </div>
-    <p class="hint" id="live-note"></p>
-  </section>
-
-  <section class="card" id="card-controls">
-    <h2 data-t="ctrlTitle">3. Steuerung</h2>
-
-    <div class="ctrl-block">
-      <h3 data-t="cSpeedLimit">Speed-Limit / Maximaltempo</h3>
-      <div class="set-row">
-        <input type="number" id="speed-kmh" min="1" max="60" step="1" value="25">
-        <span>km/h</span>
-        <select id="speed-target"></select>
-      </div>
-      <div class="btns">
-        <button id="btn-setspeed" data-t="btnSetSpeed">Setzen</button>
-      </div>
-      <p class="hint" id="speed-note"></p>
+  <div id="interactive-ui" hidden>
+    <div class="card">
+      <h2 data-t="liveTitle"></h2>
+      <div class="grid" id="tiles"></div>
+      <p class="hint" id="tiles-empty" data-t="tilesEmpty"></p>
+      <p class="hint" data-t="liveHint"></p>
     </div>
 
-    <div class="ctrl-block">
-      <h3 data-t="cCruise">Tempomat (Cruise)</h3>
-      <div class="btns">
-        <button id="btn-cruise-on" data-t="btnOn">An</button>
-        <button id="btn-cruise-off" data-t="btnOff">Aus</button>
+    <div class="card">
+      <div class="card-head"><h2 data-t="ctrlTitle"></h2><button type="button" class="help-btn" data-help="ctrl" aria-label="Info">?</button></div>
+
+      <div class="ctrl-block">
+        <h3 data-t="cSpeedLimit"></h3>
+        <div class="set-row">
+          <input type="number" id="speed-kmh" min="1" max="60" step="1" value="25">
+          <select id="speed-target"></select>
+        </div>
+        <div class="btns"><button class="span2" id="btn-setspeed" data-t="btnSetSpeed" disabled></button></div>
+        <p class="hint" data-t="speedNote"></p>
+      </div>
+
+      <div class="ctrl-block">
+        <h3 data-t="cCruise"></h3>
+        <div class="btns">
+          <button id="btn-cruise-on" data-t="btnOn" disabled></button>
+          <button id="btn-cruise-off" data-t="btnOff" disabled></button>
+        </div>
+      </div>
+
+      <div class="ctrl-block">
+        <h3 data-t="cKick"></h3>
+        <div class="btns">
+          <button id="btn-kick-on" data-t="btnZeroOn" disabled></button>
+          <button id="btn-kick-off" data-t="btnZeroOff" disabled></button>
+        </div>
+      </div>
+
+      <div class="ctrl-block">
+        <h3 data-t="cLock"></h3>
+        <div class="btns">
+          <button id="btn-lock" data-t="btnLock" disabled></button>
+          <button id="btn-unlock" data-t="btnUnlock" disabled></button>
+          <button id="btn-light-on" data-t="btnLightOn" disabled></button>
+          <button id="btn-light-off" data-t="btnLightOff" disabled></button>
+        </div>
       </div>
     </div>
 
-    <div class="ctrl-block">
-      <h3 data-t="cKick">Kickstart (Zero-Start)</h3>
-      <div class="btns">
-        <button id="btn-kick-on" data-t="btnZeroOn">Zero-Start an</button>
-        <button id="btn-kick-off" data-t="btnZeroOff">Zero-Start aus</button>
+    <div class="card">
+      <div class="card-head"><h2 data-t="expertTitle"></h2><button type="button" class="help-btn" data-help="expert" aria-label="Info">?</button></div>
+      <p class="hint" data-t="expertHint"></p>
+      <div class="ctrl-block">
+        <h3 data-t="eReg"></h3>
+        <div class="set-row">
+          <label data-t="eRegNr"></label>
+          <input type="number" id="reg-nr" min="0" max="255" value="30">
+          <label data-t="eRegVal"></label>
+          <input type="number" id="reg-val" min="0" max="65535" value="250">
+        </div>
+        <div class="btns"><button class="span2" id="btn-writereg" data-t="btnWriteReg" disabled></button></div>
       </div>
-    </div>
-
-    <div class="ctrl-block">
-      <h3 data-t="cLock">Sperre und Licht</h3>
-      <div class="btns">
-        <button id="btn-lock" data-t="btnLock">Sperren</button>
-        <button id="btn-unlock" data-t="btnUnlock">Entsperren</button>
-        <button id="btn-light-on" data-t="btnLightOn">Licht an</button>
-        <button id="btn-light-off" data-t="btnLightOff">Licht aus</button>
+      <div class="ctrl-block">
+        <h3 data-t="eRead"></h3>
+        <div class="set-row">
+          <label data-t="eRegNr"></label>
+          <input type="number" id="read-addr" min="0" max="255" value="26">
+          <label data-t="eCount"></label>
+          <input type="number" id="read-count" min="1" max="60" value="52">
+        </div>
+        <div class="btns"><button class="span2" id="btn-readreg" data-t="btnReadReg" disabled></button></div>
       </div>
-    </div>
-  </section>
-
-  <section class="card" id="card-expert">
-    <h2 data-t="expertTitle">4. Experten-Modus</h2>
-    <p class="hint" data-t="expertHint"></p>
-    <div class="ctrl-block">
-      <h3 data-t="eReg">Register schreiben (CMD 0x20)</h3>
-      <div class="set-row">
-        <label data-t="eRegNr">Register</label>
-        <input type="number" id="reg-nr" min="0" max="255" value="30">
-        <label data-t="eRegVal">Wert</label>
-        <input type="number" id="reg-val" min="0" max="65535" value="250">
-      </div>
-      <div class="btns"><button id="btn-writereg" data-t="btnWriteReg">Register schreiben</button></div>
-    </div>
-    <div class="ctrl-block">
-      <h3 data-t="eRead">Register lesen (CMD 0x06)</h3>
-      <div class="set-row">
-        <label data-t="eRegNr">Register</label>
-        <input type="number" id="read-addr" min="0" max="255" value="26">
-        <label data-t="eCount">Anzahl</label>
-        <input type="number" id="read-count" min="1" max="60" value="52">
-      </div>
-      <div class="btns"><button id="btn-readreg" data-t="btnReadReg">Lesen anstoßen</button></div>
-    </div>
-    <div class="ctrl-block">
-      <h3 data-t="eRaw">Roh-Frame senden</h3>
-      <div class="set-row">
+      <div class="ctrl-block">
+        <h3 data-t="eRaw"></h3>
         <input type="text" id="raw-hex" class="raw-in" placeholder="55 AA 04 20 03 1E FA 00">
+        <div class="btns">
+          <button id="btn-raw" data-t="btnRaw" disabled></button>
+          <button id="btn-raw-plain" data-t="btnRawPlain" disabled></button>
+        </div>
       </div>
-      <div class="btns">
-        <button id="btn-raw" data-t="btnRaw">Senden (Prüfsumme + XOR auto)</button>
-        <button id="btn-raw-plain" data-t="btnRawPlain">Roh senden (unverändert)</button>
+      <div class="set-row">
+        <label for="xor-mode" data-t="eXor"></label>
+        <select id="xor-mode">
+          <option value="0" data-t="xorNone"></option>
+          <option value="0x34">0x34</option>
+          <option value="0x55">0x55</option>
+          <option value="0x39">0x39</option>
+          <option value="0x18">0x18</option>
+          <option value="0x7a">0x7a</option>
+          <option value="0xd8">0xd8</option>
+        </select>
       </div>
     </div>
-    <div class="set-row">
-      <label data-t="eXor">Modell-XOR</label>
-      <select id="xor-mode">
-        <option value="0">keiner (0x00)</option>
-        <option value="0x34">0x34</option>
-        <option value="0x55">0x55</option>
-        <option value="0x39">0x39</option>
-        <option value="0x18">0x18</option>
-        <option value="0x7a">0x7a</option>
-        <option value="0xd8">0xd8</option>
-      </select>
-    </div>
-  </section>
+  </div>
 
-  <section class="card" id="card-loganalyze">
-    <h2 data-t="laTitle">5. Bluetooth-Log analysieren</h2>
+  <div class="card">
+    <div class="card-head"><h2 data-t="laTitle"></h2><button type="button" class="help-btn" data-help="btsnoop" aria-label="Info">?</button></div>
     <p class="hint" data-t="laIntro"></p>
     <div class="set-row">
       <input type="file" id="la-file" accept=".log,.gz,.zip">
-      <button id="btn-analyze" data-t="laBtn">Analysieren</button>
+      <button id="btn-analyze" data-t="laBtn"></button>
     </div>
     <p class="hint" id="la-status"></p>
-    <pre id="la-out" class="log" hidden></pre>
+    <pre id="la-out" hidden></pre>
     <p class="hint" data-t="laHint"></p>
-  </section>
+  </div>
 
-  <section class="card">
-    <h2 data-t="logTitle">Protokoll</h2>
-    <pre id="log" class="log"></pre>
-  </section>
+  <div class="card">
+    <h2 data-t="s6Title"></h2>
+    <div class="log-opts">
+      <div class="log-opt">
+        <span data-t="publicLogLabel"></span>
+        <input type="checkbox" id="public-log" checked>
+        <button type="button" class="help-btn" data-help="publiclog" aria-label="Info">?</button>
+      </div>
+      <div class="log-opt">
+        <span data-t="diagLogLabel"></span>
+        <input type="checkbox" id="diag-log">
+        <button type="button" class="help-btn" data-help="diaglog" aria-label="Info">?</button>
+      </div>
+    </div>
+    <div class="btns">
+      <button type="button" id="btn-copy-log" data-t="btnCopyLog"></button>
+      <button type="button" id="btn-clear-log" data-t="btnClearLog"></button>
+      <button type="button" id="btn-save-log" class="span2" data-t="btnSaveLog"></button>
+    </div>
+    <pre id="log"></pre>
+    <p class="hint"><span class="log-tx" data-t="logTxLegend"></span>, <span class="log-rx" data-t="logRxLegend"></span></p>
+  </div>
 
-  <footer>
-    <p class="hint" data-t="footer"></p>
+  <footer class="foot">
+    <span class="foot-links">
+      <a id="link-guide" href="GUIDE.de.md" data-doc="GUIDE" data-t="footGuide"></a>
+      <a href="https://github.com/Laufbursche42/is-unlock" target="_blank" rel="noopener" data-t="footSource"></a>
+      <a id="link-readme" href="README.md" data-doc="README" data-t="footReadme"></a>
+      <a id="link-disclaimer" href="#" data-t="footDisclaimer"></a>
+      <a id="link-license" href="LICENSE.de.md" data-doc="LICENSE" data-t="footLicense"></a>
+      <a id="link-privacy" href="PRIVACY.de.md" data-doc="PRIVACY" data-t="footPrivacy"></a>
+      <a id="link-trademarks" href="TRADEMARKS.de.md" data-doc="TRADEMARKS" data-t="footTrademarks"></a>
+    </span>
+    <span class="ver" id="build-ver"></span>
+    <a class="foot-copy" href="https://laufbursche42.github.io/Laufbursche42/" target="_blank" rel="noopener">Copyright (c) 2026 Laufbursche</a>
   </footer>
 </div>
-<script src="i18n.js?v=2"></script>
-<script src="app.js?v=2"></script>
+
+<dialog id="doc" aria-labelledby="doc-title">
+  <div class="doc-head">
+    <h3 id="doc-title"></h3>
+    <button type="button" id="doc-x">&times;</button>
+  </div>
+  <div class="doc-body" id="doc-body"></div>
+  <div class="doc-foot">
+    <button type="button" id="doc-close" data-t="docClose"></button>
+  </div>
+</dialog>
+
+<dialog id="help" aria-labelledby="help-title">
+  <div class="doc-head">
+    <h3 id="help-title"></h3>
+    <button type="button" id="help-x">&times;</button>
+  </div>
+  <div class="doc-body"><p id="help-body"></p></div>
+  <div class="doc-foot">
+    <button type="button" id="help-close" data-t="docClose"></button>
+  </div>
+</dialog>
+
+<script src="i18n.js?v=3"></script>
+<script src="app.js?v=3"></script>
 </body>
 </html>

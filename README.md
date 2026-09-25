@@ -1,4 +1,4 @@
-# Laufbursche iScooter unlock
+# Laufbursche iScooter Tool (is-unlock)
 
 A static web page that talks to iScooter e-scooters over Web Bluetooth. Let the page auto-detect your
 scooter or pick the model yourself, and it uses the matching BLE protocol for it. Depending on the

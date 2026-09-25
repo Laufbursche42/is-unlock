@@ -1,6 +1,13 @@
-// iScooter unlock - a Web Bluetooth client for the loby/MiniRobot BLE protocol family.
 'use strict';
-const BUILD = 'isu-v2';
+// Laufbursche iScooter Tool - a Web Bluetooth client for the loby/MiniRobot BLE protocol family.
+// Shell (header, footer, i18n, theme, doc viewer, anonymized log) matches the Laufbursche tool family;
+// the BLE protocol is the proven iScooter frame engine. The pre-commit cache-buster auto-bumps BUILD
+// and every ?v= in index.html on any web-asset change.
+const BUILD = 'isu-v3';
+
+// =====================================================================================
+// iScooter BLE protocol (ground truth - do not reinvent)
+// =====================================================================================
 
 // --------------------------- BLE transports (5 GATT profiles) ---------------------------
 const TRANSPORTS = [
@@ -62,28 +69,144 @@ function applyXor(frame, key){ return key ? frame.map(b => b ^ key) : frame; }
 function reg16LE(v){ v &= 0xffff; return [v & 0xff, (v >> 8) & 0xff]; }
 function hex(bytes){ return bytes.map(b=>b.toString(16).padStart(2,'0').toUpperCase()).join(' '); }
 
-// --------------------------- BLE state ---------------------------
+// --------------------------- helpers ---------------------------
+const $ = (id) => document.getElementById(id);
+const short = (u) => String(u).slice(0, 8).toUpperCase();
+const LS = { THEME: 'isu_theme', LANG: 'isu_lang', PUBLOG: 'isu_publiclog' };
+
+// =====================================================================================
+// i18n
+// =====================================================================================
+let lang = 'de';
+function table() { return (window.I18N && window.I18N[lang]) || {}; }
+function t(key) { const v = table()[key]; return (typeof v === 'string') ? v : ''; }
+function applyLang() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-t]').forEach(n => {
+    const v = t(n.getAttribute('data-t'));
+    if (/[<&]/.test(v)) n.innerHTML = v; else n.textContent = v;   // scan-ok: our own translation table
+  });
+  { const el = $('link-guide'); if (el) el.href = docFile('GUIDE'); }
+  { const el = $('link-readme'); if (el) el.href = docFile('README'); }
+  { const el = $('link-license'); if (el) el.href = docFile('LICENSE'); }
+  { const el = $('link-privacy'); if (el) el.href = docFile('PRIVACY'); }
+  { const el = $('link-trademarks'); if (el) el.href = docFile('TRADEMARKS'); }
+  { const el = $('langs'); if (el) el.setAttribute('aria-label', t('langGroup')); }
+  { const el = $('build-ver'); if (el) el.textContent = t('buildLabel') + ' ' + BUILD; }
+  { const el = $('enc-state'); if (el) el.textContent = t('encNone'); }
+  document.querySelectorAll('#langs button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
+  buildModelDropdown();
+  fillSpeedTargets();
+  { const el = $('status'); setStatus(el ? el.dataset.state : 'disconnected'); }
+  refreshTele();
+  { const dark = document.documentElement.getAttribute('data-theme') !== 'light';
+    const el = $('btn-theme'); if (el) { el.setAttribute('aria-label', t(dark ? 'themeToLight' : 'themeToDark')); el.title = el.getAttribute('aria-label'); } }
+}
+function initLangSwitch() {
+  let saved = null; try { saved = localStorage.getItem(LS.LANG); } catch (e) {}
+  if (saved === 'de' || saved === 'en') lang = saved;
+  document.querySelectorAll('#langs button').forEach(b => b.addEventListener('click', () => {
+    lang = b.dataset.lang; try { localStorage.setItem(LS.LANG, lang); } catch (e) {} applyLang();
+  }));
+}
+
+// =====================================================================================
+// theme
+// =====================================================================================
+function applyTheme(dark) {
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  const b = $('btn-theme');
+  if (b) { b.innerHTML = dark ? '&#9728;' : '&#9790;'; b.setAttribute('aria-label', t(dark ? 'themeToLight' : 'themeToDark')); b.title = b.getAttribute('aria-label'); } // scan-ok: fixed character (sun/moon), not user input
+  try { localStorage.setItem(LS.THEME, dark ? 'dark' : 'light'); } catch (e) {}
+}
+function initTheme() {
+  let saved = null; try { saved = localStorage.getItem(LS.THEME); } catch (e) {}
+  applyTheme(saved !== 'light');
+  const b = $('btn-theme');
+  if (b) b.addEventListener('click', () => applyTheme(document.documentElement.getAttribute('data-theme') === 'light'));
+}
+
+// =====================================================================================
+// log (anonymized on the way out; the buffer keeps raw text with \x01..\x01 sensitive spans)
+// =====================================================================================
+let logBuffer = [];    // { raw, cls }
+let publicLog = true;  // anonymize the log (default on)
+let diag = false;      // verbose diagnostic logging (default off)
+function redact(text) {
+  let s = String(text);
+  if (device && device.id) s = s.split(device.id).join('[redacted-id]');
+  s = s.replace(/\b(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}\b/g, '[redacted-mac]');   // MAC
+  s = s.replace(/\b(secret|token|key|aes|pwd|password|pin|mac|serial|vin|uid|imei)\b(\s*[:=]\s*)("?)([^\s",]+)\3/gi,
+    (m, k, sep) => k + sep + '[redacted]');
+  s = s.replace(/\b[0-9A-Fa-f]{16,}\b/g, '[redacted-hex]');   // long hex runs (ids/serials/keys)
+  return s;
+}
+function anonymize(s) {
+  if (!publicLog) return String(s).replace(/\x01/g, '');
+  return redact(String(s).replace(/\x01[^\x01]*\x01/g, 'XX').replace(/\x01/g, ''));
+}
+function logLine(cls, text) {
+  logBuffer.push({ raw: text, cls: cls });
+  const el = $('log'); if (!el) return;
+  const span = document.createElement('span');
+  if (cls) span.className = cls; span.textContent = anonymize(text) + '\n';
+  el.appendChild(span); el.scrollTop = el.scrollHeight;
+}
+function renderLog() {
+  const el = $('log'); if (!el) return;
+  el.textContent = '';
+  for (const e of logBuffer) { const span = document.createElement('span'); if (e.cls) span.className = e.cls; span.textContent = anonymize(e.raw) + '\n'; el.appendChild(span); }
+  el.scrollTop = el.scrollHeight;
+}
+function logText() { return logBuffer.map(e => anonymize(e.raw)).join('\n'); }
+function saveLog() {
+  try {
+    const blob = new Blob([logText()], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'laufbursche42-iscooter-log.txt';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    logSys('log saved');
+  } catch (e) { logErr('save failed: ' + (e && e.message ? e.message : e)); }
+}
+const logTx = (b) => logLine('log-tx', '>>> ' + hex(b));
+const logRx = (b) => logLine('log-rx', '<<< ' + hex(b));
+const logSys = (t) => logLine('', '--- ' + t);
+const logErr = (t) => logLine('log-err', '!!! ' + t);
+const logDiag = (t) => { if (diag) logLine('', '... ' + t); };
+function logDiagnosticHeader() {
+  logLine('', '=== is-unlock diagnostic ===');
+  logLine('', 'time: ' + new Date().toISOString());
+  logLine('', 'build: ' + BUILD);
+  logLine('', 'userAgent: ' + navigator.userAgent);
+  logLine('', 'platform: ' + (navigator.platform || '?'));
+  logLine('', 'webBluetooth: ' + (navigator.bluetooth ? 'yes' : 'no'));
+  logLine('', '============================');
+}
+
+// =====================================================================================
+// BLE state
+// =====================================================================================
 let device=null, server=null, writeChar=null, notifyChar=null, transport=null;
 let connected=false, pollTimer=null;
 const regBank = {};   // received registers: absolute number -> 16-bit value
 
-function $(id){ return document.getElementById(id); }
-function log(msg){ const l=$('log'); l.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`; l.scrollTop=l.scrollHeight; }
 function xorKey(){ return parseInt($('xor-mode').value) || 0; }
 
 async function sendFrame(frame){
-  if(!writeChar){ log('not connected'); return; }
+  if(!writeChar){ logErr('not connected'); return; }
   const out = applyXor(frame, xorKey());
   const buf = Uint8Array.from(out);
   try{
     if(writeChar.writeValueWithoutResponse) await writeChar.writeValueWithoutResponse(buf);
     else await writeChar.writeValue(buf);
-    log('TX ' + hex(out));
-  }catch(e){ log('TX error: ' + e); }
+    logTx(out);
+  }catch(e){ logErr('TX error: ' + (e && e.message ? e.message : e)); }
 }
 function writeReg(reg, value){ return sendFrame(buildFrame(0x20, 0x03, reg, reg16LE(value))); }
 function readReg(addr, count){ return sendFrame(buildFrame(0x06, 0x01, addr, [count & 0xff])); }
-function writeRegNamed(name, reg, val){ writeReg(reg, val); log(`${name}: reg 0x${reg.toString(16)} = ${val}`); }
+function writeRegNamed(name, reg, val){ writeReg(reg, val); logSys(`${name}: reg 0x${reg.toString(16)} = ${val}`); }
 
 // --------------------------- receive / telemetry ---------------------------
 function onNotify(ev){
@@ -91,37 +214,68 @@ function onNotify(ev){
   let b = Array.from(v);
   const key = xorKey();
   if(key) b = b.map(x => x ^ key);
-  if(b.length < 6 || b[0] !== 0x55 || b[1] !== 0xAA){ log('RX (raw) ' + hex(Array.from(v))); return; }
-  log('RX ' + hex(b));
+  if(b.length < 6 || b[0] !== 0x55 || b[1] !== 0xAA){ logRx(Array.from(v)); return; }
+  logRx(b);
   const len = b[2], startReg = b[5], payLen = Math.max(0, len - 2);
   for(let i=0; i+1<payLen; i+=2) regBank[startReg + (i/2)] = b[6+i] | (b[6+i+1] << 8);
   refreshTele();
 }
 function te(sel){ const c=TELE[sel]; const raw=regBank[c.reg]; return raw===undefined ? null : (c.div ? raw/c.div : raw); }
+// Each tile carries a presence test and a formatter. A tile is added to the grid only once its value
+// first arrives, so the scooter reveals exactly the fields it reports.
+const TILES = [
+  { id:'t-speed', key:'tSpeed', seen:()=>te('speed')!=null,        val:()=>te('speed').toFixed(1)+' km/h' },
+  { id:'t-batt',  key:'tBatt',  seen:()=>te('batt')!=null,         val:()=>te('batt')+' %' },
+  { id:'t-volt',  key:'tVolt',  seen:()=>te('volt')!=null,         val:()=>te('volt').toFixed(1)+' V' },
+  { id:'t-curr',  key:'tCurr',  seen:()=>te('curr')!=null,         val:()=>te('curr').toFixed(1)+' A' },
+  { id:'t-trip',  key:'tTrip',  seen:()=>te('trip')!=null,         val:()=>te('trip').toFixed(1)+' km' },
+  { id:'t-total', key:'tTotal', seen:()=>regBank[TELE.totalLo.reg]!==undefined,
+    val:()=>(((regBank[TELE.totalHi.reg]||0)*65536+regBank[TELE.totalLo.reg])/10).toFixed(1)+' km' },
+  { id:'t-max',   key:'tMax',   seen:()=>te('max')!=null,          val:()=>te('max').toFixed(1)+' km/h' },
+  { id:'t-lock',  key:'tLock',  seen:()=>regBank[TELE.lock.reg]!==undefined,
+    val:()=>regBank[TELE.lock.reg] ? t('valLocked') : t('valUnlocked') },
+  { id:'t-err',   key:'tErr',   seen:()=>regBank[TELE.err.reg]!==undefined,
+    val:()=>{ const e=regBank[TELE.err.reg]; return e ? String(e) : '0'; } },
+  { id:'t-fw',    key:'tFw',    seen:()=>regBank[TELE.fw.reg]!==undefined,
+    val:()=>'0x'+regBank[TELE.fw.reg].toString(16) },
+];
+const liveSeen = {};
+function ensureTile(def) {
+  if ($(def.id + '-tile')) return;
+  const grid = $('tiles'); if (!grid) return;
+  const tile = document.createElement('div'); tile.className = 'tile'; tile.id = def.id + '-tile';
+  const b = document.createElement('b'); b.id = def.id; b.textContent = '-';
+  const small = document.createElement('small'); small.setAttribute('data-t', def.key); small.textContent = t(def.key);
+  tile.appendChild(b); tile.appendChild(small); grid.appendChild(tile);
+}
 function refreshTele(){
-  const sp=te('speed'); $('t-speed').textContent = sp!=null ? sp.toFixed(1)+' km/h' : '-';
-  const ba=te('batt');  $('t-batt').textContent  = ba!=null ? ba+' %' : '-';
-  const vo=te('volt');  $('t-volt').textContent  = vo!=null ? vo.toFixed(1)+' V' : '-';
-  const cu=te('curr');  $('t-curr').textContent  = cu!=null ? cu.toFixed(1)+' A' : '-';
-  const tr=te('trip');  $('t-trip').textContent  = tr!=null ? tr.toFixed(1)+' km' : '-';
-  const tl=regBank[TELE.totalLo.reg], th=regBank[TELE.totalHi.reg];
-  $('t-total').textContent = (tl!==undefined) ? (((th||0)*65536+tl)/10).toFixed(1)+' km' : '-';
-  const mx=te('max'); $('t-max').textContent = mx!=null ? mx.toFixed(1)+' km/h' : '-';
-  const lk=regBank[TELE.lock.reg]; $('t-lock').textContent = lk!==undefined ? (lk ? t('locked') : t('unlocked')) : '-';
-  const er=regBank[TELE.err.reg];  $('t-err').textContent  = (er!==undefined && er) ? String(er) : '0';
-  const fw=regBank[TELE.fw.reg];   $('t-fw').textContent   = fw!==undefined ? '0x'+fw.toString(16) : '-';
+  let any = false;
+  for (const def of TILES) {
+    if (def.seen()) { liveSeen[def.id] = true; ensureTile(def); const el = $(def.id); if (el) el.textContent = def.val(); }
+    if (liveSeen[def.id]) any = true;
+  }
+  const empty = $('tiles-empty'); if (empty) empty.hidden = any;
+}
+function resetTiles(){
+  for (const k of Object.keys(liveSeen)) delete liveSeen[k];
+  for (const k of Object.keys(regBank)) delete regBank[k];
+  const grid = $('tiles'); if (grid) grid.textContent = '';
+  const empty = $('tiles-empty'); if (empty) empty.hidden = false;
 }
 
-// --------------------------- connect ---------------------------
+// =====================================================================================
+// connect / reveal
+// =====================================================================================
 async function connect(){
   if(connected){ await disconnect(); return; }
-  if(!navigator.bluetooth){ log('Web Bluetooth not available (needs Chrome or Bluefy)'); return; }
+  if(!navigator.bluetooth){ logErr('Web Bluetooth not available (needs Chrome, Edge or Bluefy)'); return; }
   try{
-    $('status').textContent = t('stConnecting');
+    setStatus('connecting');
     const filters = SCAN_PREFIXES.map(p => ({ namePrefix: p }));
     device = await navigator.bluetooth.requestDevice({ filters, optionalServices: ALL_SERVICES });
     device.addEventListener('gattserverdisconnected', onDisc);
-    log('device: ' + (device.name || '(no name)'));
+    logSys('device: \x01' + (device.name || '(no name)') + '\x01');
+    setStatus('linking');
     server = await device.gatt.connect();
     transport = null;
     for(const tr of TRANSPORTS){
@@ -132,30 +286,56 @@ async function connect(){
         if(w && n){ transport=tr; writeChar=w; notifyChar=n; break; }
       }catch(e){ /* try next profile */ }
     }
-    if(!transport){ log('no matching GATT profile found'); await disconnect(); return; }
-    log('profile ' + transport.id + ' (' + transport.name + ')');
+    if(!transport){ logErr('no matching GATT profile found'); setStatus('no-service'); await disconnect(); return; }
+    logDiag('profile ' + transport.id + ' (' + transport.name + ')');
     await notifyChar.startNotifications();
     notifyChar.addEventListener('characteristicvaluechanged', onNotify);
     connected = true;
-    $('status').textContent = t('stConnected');
-    $('btn-conn').textContent = t('btnDisconnect');
-    $('devinfo').textContent = (device.name||'') + '  -  profile ' + transport.id;
+    setStatus('connected');
+    revealInteractive(true);
+    setControlsEnabled(true);
+    { const el = $('devinfo'); if (el) el.textContent = t('devPrefix') + ' ' + ((publicLog && device.name) ? 'XX' : (device.name || '')) + '  -  profile ' + transport.id; }
+    logSys('connected, profile ' + transport.id);
     startPoll();
-  }catch(e){ log('connect aborted: ' + e); $('status').textContent = t('stDisconnected'); }
+  }catch(e){ logErr('connect aborted: ' + (e && e.message ? e.message : e)); setStatus('disconnected'); }
 }
 function startPoll(){ stopPoll(); readReg(POLL.addr, POLL.count);
   pollTimer = setInterval(()=>{ if(connected) readReg(POLL.addr, POLL.count); }, POLL.everyMs); }
 function stopPoll(){ if(pollTimer){ clearInterval(pollTimer); pollTimer=null; } }
 async function disconnect(){ stopPoll(); try{ if(device && device.gatt.connected) device.gatt.disconnect(); }catch(e){} onDisc(); }
 function onDisc(){ connected=false; writeChar=null; notifyChar=null; transport=null;
-  $('status').textContent = t('stDisconnected'); $('btn-conn').textContent = t('btnConnect'); log('disconnected'); }
+  setStatus('disconnected'); setControlsEnabled(false); revealInteractive(false); resetTiles();
+  const el = $('devinfo'); if (el) el.textContent = ''; logSys('disconnected'); }
 
-// --------------------------- UI wiring ---------------------------
+function revealInteractive(on){ const ui = $('interactive-ui'); if (ui) ui.hidden = !on; }
+const CONTROL_IDS = ['btn-setspeed','btn-cruise-on','btn-cruise-off','btn-kick-on','btn-kick-off',
+  'btn-lock','btn-unlock','btn-light-on','btn-light-off','btn-writereg','btn-readreg','btn-raw','btn-raw-plain'];
+function setControlsEnabled(on){ CONTROL_IDS.forEach(id => { const e = $(id); if (e) e.disabled = !on; }); }
+
+// --------------------------- status ---------------------------
+function statusLabel(s){
+  const map = { disconnected:'stDisconnected', connecting:'stConnecting', linking:'stLinking',
+    connected:'stConnected', 'no-service':'stNoService', 'no-char':'stNoChar' };
+  return t(map[s] || 'stDisconnected') || s;
+}
+function setStatus(s){
+  const el = $('status'); if (el) { el.dataset.state = s; el.textContent = statusLabel(s); }
+  const cb = $('btn-conn');
+  if (cb) { const on = (s === 'connecting' || s === 'linking' || s === 'connected'); cb.textContent = on ? t('btnDisconnect') : t('btnConnect'); }
+}
+
+// =====================================================================================
+// control wiring
+// =====================================================================================
 function makeOption(value, label){ const o=document.createElement('option'); o.value=value; o.textContent=label; return o; }
-function fillSelects(){
-  const st=$('speed-target'); st.textContent='';
-  SPEED_TARGETS.forEach(s=> st.appendChild(makeOption(s.reg, s.label)));
-  const mi=$('model-in'); mi.textContent=''; mi.appendChild(makeOption('auto', t('autoDetect')));
+function buildModelDropdown(){
+  const mi=$('model-in'); if(!mi) return; const prev = mi.value || 'auto';
+  mi.textContent=''; mi.appendChild(makeOption('auto', t('modelAuto'))); mi.value = prev;
+}
+function fillSpeedTargets(){
+  const st=$('speed-target'); if(!st) return; const prev = st.value;
+  st.textContent=''; SPEED_TARGETS.forEach(s=> st.appendChild(makeOption(s.reg, s.label)));
+  if (prev) st.value = prev;
 }
 // Read-modify-write one bit of the 0xd3 light bitfield via the local mirror.
 function d3set(bit, on, name){
@@ -163,49 +343,144 @@ function d3set(bit, on, name){
   cur = on ? (cur | bit) : (cur & ~bit & 0xffff);
   regBank[D3] = cur;
   writeReg(D3, cur);
-  log(`${name}: 0xd3 bit 0x${bit.toString(16)} -> ${on?'on':'off'} (0x${cur.toString(16)})`);
+  logSys(`${name}: 0xd3 bit 0x${bit.toString(16)} -> ${on?'on':'off'} (0x${cur.toString(16)})`);
 }
+function parseHex(s){ return (s.match(/[0-9a-fA-F]{2}/g) || []).map(h=>parseInt(h,16)); }
 function wire(){
-  $('btn-conn').onclick = connect;
-  $('btn-theme').onclick = ()=>{ const d=document.documentElement; const now=d.getAttribute('data-theme')==='dark'?'light':'dark';
-    d.setAttribute('data-theme', now); localStorage.setItem('isu_theme', now); };
-  const th = localStorage.getItem('isu_theme'); if(th) document.documentElement.setAttribute('data-theme', th);
+  $('btn-conn').addEventListener('click', connect);
 
-  $('btn-setspeed').onclick = ()=>{
+  $('btn-setspeed').addEventListener('click', ()=>{
     const kmh = parseFloat($('speed-kmh').value) || 0;
     const reg = parseInt($('speed-target').value);
     const tg = SPEED_TARGETS.find(s=>s.reg===reg) || { mul:1000, add:0 };
     const raw = Math.round(kmh*tg.mul + tg.add) & 0xffff;
-    writeReg(reg, raw); log(`speed limit: reg 0x${reg.toString(16)} = ${kmh} km/h (raw ${raw})`);
-  };
+    writeReg(reg, raw); logSys(`speed limit: reg 0x${reg.toString(16)} = ${kmh} km/h (raw ${raw})`);
+  });
 
-  $('btn-light-on').onclick  = ()=>{ d3set(D3_BITS.headlight, true,  'headlight'); if(transport && transport.id===3) writeReg(REG_HEADLIGHT_T3, 1); };
-  $('btn-light-off').onclick = ()=>{ d3set(D3_BITS.headlight, false, 'headlight'); if(transport && transport.id===3) writeReg(REG_HEADLIGHT_T3, 0); };
+  $('btn-light-on').addEventListener('click', ()=>{ d3set(D3_BITS.headlight, true,  'headlight'); if(transport && transport.id===3) writeReg(REG_HEADLIGHT_T3, 1); });
+  $('btn-light-off').addEventListener('click', ()=>{ d3set(D3_BITS.headlight, false, 'headlight'); if(transport && transport.id===3) writeReg(REG_HEADLIGHT_T3, 0); });
 
-  $('btn-lock').onclick   = ()=> writeRegNamed('lock',   REG_LOCK, 1);
-  $('btn-unlock').onclick = ()=> writeRegNamed('unlock', REG_LOCK, 0);
+  $('btn-lock').addEventListener('click', ()=> writeRegNamed('lock',   REG_LOCK, 1));
+  $('btn-unlock').addEventListener('click', ()=> writeRegNamed('unlock', REG_LOCK, 0));
 
   // Cruise and speed-limit mode are the same on/off switch; the target speed is set separately above.
-  $('btn-cruise-on').onclick  = ()=> writeRegNamed('cruise/limit on',  REG_LIMIT_ENABLE, 1);
-  $('btn-cruise-off').onclick = ()=> writeRegNamed('cruise/limit off', REG_LIMIT_ENABLE, 0);
-  $('btn-kick-on').onclick  = ()=> writeRegNamed('zero-start on',  REG_KICKSTART, 1);
-  $('btn-kick-off').onclick = ()=> writeRegNamed('zero-start off', REG_KICKSTART, 0);
+  $('btn-cruise-on').addEventListener('click', ()=> writeRegNamed('cruise/limit on',  REG_LIMIT_ENABLE, 1));
+  $('btn-cruise-off').addEventListener('click', ()=> writeRegNamed('cruise/limit off', REG_LIMIT_ENABLE, 0));
+  $('btn-kick-on').addEventListener('click', ()=> writeRegNamed('zero-start on',  REG_KICKSTART, 1));
+  $('btn-kick-off').addEventListener('click', ()=> writeRegNamed('zero-start off', REG_KICKSTART, 0));
 
-  $('btn-writereg').onclick = ()=> writeReg(parseInt($('reg-nr').value)&0xff, parseInt($('reg-val').value)&0xffff);
-  $('btn-readreg').onclick  = ()=> readReg(parseInt($('read-addr').value)&0xff, parseInt($('read-count').value)&0xff);
-  $('btn-raw').onclick = ()=>{ const bytes=parseHex($('raw-hex').value); if(bytes.length<3){ log('too short'); return; }
-    const ck=checksum16(bytes,2); bytes.push(ck&0xff,(ck>>8)&0xff); sendFrame(bytes); };
-  $('btn-raw-plain').onclick = ()=>{ const bytes=parseHex($('raw-hex').value); if(!bytes.length) return;
-    if(!writeChar){ log('not connected'); return; }
+  $('btn-writereg').addEventListener('click', ()=> writeReg(parseInt($('reg-nr').value)&0xff, parseInt($('reg-val').value)&0xffff));
+  $('btn-readreg').addEventListener('click', ()=> readReg(parseInt($('read-addr').value)&0xff, parseInt($('read-count').value)&0xff));
+  $('btn-raw').addEventListener('click', ()=>{ const bytes=parseHex($('raw-hex').value); if(bytes.length<3){ logErr('too short'); return; }
+    const ck=checksum16(bytes,2); bytes.push(ck&0xff,(ck>>8)&0xff); sendFrame(bytes); });
+  $('btn-raw-plain').addEventListener('click', ()=>{ const bytes=parseHex($('raw-hex').value); if(!bytes.length) return;
+    if(!writeChar){ logErr('not connected'); return; }
     const buf=Uint8Array.from(bytes);
     (writeChar.writeValueWithoutResponse ? writeChar.writeValueWithoutResponse(buf) : writeChar.writeValue(buf));
-    log('TX raw ' + hex(bytes)); };
+    logTx(bytes); });
 
-  $('btn-analyze').onclick = onAnalyze;
+  $('btn-analyze').addEventListener('click', onAnalyze);
+
+  // log card
+  $('btn-copy-log').addEventListener('click', () => navigator.clipboard.writeText(logText()).then(() => logSys('log copied')).catch(() => {}));
+  $('btn-clear-log').addEventListener('click', () => { logBuffer = []; const el = $('log'); if (el) el.textContent = ''; logDiagnosticHeader(); });
+  $('btn-save-log').addEventListener('click', saveLog);
+  { const pl = $('public-log'); if (pl) { pl.checked = publicLog; pl.addEventListener('change', () => { publicLog = pl.checked; try { localStorage.setItem(LS.PUBLOG, publicLog ? '1' : '0'); } catch (e) {} renderLog(); }); } }
+  { const dg = $('diag-log'); if (dg) dg.addEventListener('change', () => { diag = dg.checked; }); }
+
+  document.querySelectorAll('.help-btn').forEach(btn => btn.addEventListener('click', () => openHelp(btn.getAttribute('data-help'))));
+  ['help-x', 'help-close'].forEach(id => { const b = $(id); if (b) b.addEventListener('click', closeHelp); });
+  { const b = $('link-disclaimer'); if (b) b.addEventListener('click', e => { e.preventDefault(); openHelp('disclaimer'); }); }
 }
-function parseHex(s){ return (s.match(/[0-9a-fA-F]{2}/g) || []).map(h=>parseInt(h,16)); }
 
-// --------------------------- Bluetooth-log (btsnoop) frame lister ---------------------------
+// =====================================================================================
+// document viewer (markdown of our own docs) + help
+// =====================================================================================
+const DOC_TITLES = {
+  'GUIDE.de.md': 'footGuide', 'GUIDE.en.md': 'footGuide',
+  'PRIVACY.de.md': 'footPrivacy', 'PRIVACY.md': 'footPrivacy',
+  'LICENSE.de.md': 'footLicense', 'LICENSE.md': 'footLicense',
+  'TRADEMARKS.de.md': 'footTrademarks', 'TRADEMARKS.md': 'footTrademarks',
+  'README.md': 'footReadme'
+};
+const escHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const slug = s => s.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/ /g, '-');
+function mdToHtml(src) {
+  const inline = s => escHtml(s)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (all, text, href) => {
+      if (DOC_TITLES[href]) return '<a href="' + href + '" data-docfile="' + href + '">' + text + '</a>';
+      return '<a href="' + href + '" target="_blank" rel="noopener">' + text + '</a>';
+    });
+  const lines = String(src).replace(/\r\n?/g, '\n').split('\n');
+  const out = []; let para = [], inFence = false, listKind = null;
+  const flushPara = () => { if (para.length) { out.push('<p>' + inline(para.join(' ')) + '</p>'); para = []; } };
+  const closeList = () => { if (listKind) { out.push('</' + listKind + '>'); listKind = null; } };
+  const cells = l => l.replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i], body = l.trim();
+    if (inFence) { if (body.startsWith('```')) { out.push('</code></pre>'); inFence = false; } else out.push(escHtml(l)); continue; }
+    if (body.startsWith('```')) { flushPara(); closeList(); out.push('<pre><code>'); inFence = true; continue; }
+    if (body === '') { flushPara(); closeList(); continue; }
+    if (/^(-{3,})\s*$/.test(body)) { flushPara(); closeList(); out.push('<hr>'); continue; }
+    { const bq = body.match(/^>\s?(.*)$/); if (bq) { flushPara(); closeList(); out.push('<blockquote>' + inline(bq[1]) + '</blockquote>'); continue; } }
+    if (body.startsWith('|') && /^\|[\s:|-]+\|?\s*$/.test((lines[i + 1] || '').trim())) {
+      flushPara(); closeList();
+      out.push('<div class="doc-table"><table><thead><tr>' + cells(body).map(c => '<th>' + inline(c) + '</th>').join('') + '</tr></thead><tbody>');
+      i++;
+      while (i + 1 < lines.length && lines[i + 1].trim().startsWith('|')) out.push('<tr>' + cells(lines[++i].trim()).map(c => '<td>' + inline(c) + '</td>').join('') + '</tr>');
+      out.push('</tbody></table></div>'); continue;
+    }
+    let m;
+    if ((m = body.match(/^(#{1,4})\s+(.*)$/))) { flushPara(); closeList(); const n = m[1].length; out.push('<h' + n + ' id="' + slug(m[2]) + '">' + inline(m[2]) + '</h' + n + '>'); continue; }
+    if ((m = body.match(/^[-*]\s+(.*)$/))) { flushPara(); if (listKind !== 'ul') { closeList(); out.push('<ul>'); listKind = 'ul'; } out.push('<li>' + inline(m[1]) + '</li>'); continue; }
+    if ((m = body.match(/^\d+\.\s+(.*)$/))) { flushPara(); if (listKind !== 'ol') { closeList(); out.push('<ol>'); listKind = 'ol'; } out.push('<li>' + inline(m[1]) + '</li>'); continue; }
+    closeList(); para.push(body);
+  }
+  if (inFence) out.push('</code></pre>');
+  flushPara(); closeList();
+  return out.join('\n').replace(/<pre><code>\n/g, '<pre><code>');
+}
+const docCache = {};
+const docFile = name => { if (name === 'GUIDE') return 'GUIDE.' + lang + '.md'; if (name === 'README') return 'README.md'; return lang === 'de' ? name + '.de.md' : name + '.md'; };
+function openDocFile(file, titleKey) {
+  const dlg = $('doc'), body = $('doc-body'); if (!dlg || !body) return;
+  const mark = (lang === 'de' && !file.includes('.de.') && file !== 'README.md') ? ' ' + t('docEnglish') : '';
+  $('doc-title').textContent = (t(titleKey || DOC_TITLES[file] || '') || file) + mark;
+  if (typeof dlg.showModal === 'function') dlg.showModal();
+  const showDoc = html => { body.innerHTML = html; const h1 = body.querySelector('h1'); if (h1) { $('doc-title').textContent = h1.textContent.trim() + mark; h1.remove(); } body.scrollTop = 0; }; // scan-ok: markdown of our own documents, escaped by mdToHtml first
+  if (docCache[file]) { showDoc(docCache[file]); return; }
+  body.innerHTML = '<p>' + escHtml(t('docLoading')) + '</p>'; // scan-ok: escaped
+  fetch(file + '?v=' + BUILD).then(r => { if (!r.ok) throw new Error(r.status + ' ' + r.statusText); return r.text(); })
+    .then(txt => { docCache[file] = mdToHtml(txt); showDoc(docCache[file]); })
+    .catch(e => { body.innerHTML = '<p>' + escHtml(t('docFail')) + '</p><pre class="log-err">' + escHtml(file + ': ' + (e && e.message ? e.message : e)) + '</pre>'; }); // scan-ok: escaped
+}
+function wireDocViewer() {
+  document.addEventListener('click', e => {
+    if (!e.target.closest) return;
+    const disc = e.target.closest('[data-open-disclaimer]'); if (disc) { e.preventDefault(); openHelp('disclaimer'); return; }
+    const a = e.target.closest('[data-doc], [data-docfile]'); if (!a) return;
+    e.preventDefault();
+    const file = a.getAttribute('data-docfile');
+    if (file) openDocFile(file, a.getAttribute('data-t') || '');
+    else openDocFile(docFile(a.getAttribute('data-doc')), a.getAttribute('data-t') || '');
+  });
+  ['doc-x', 'doc-close'].forEach(id => { const b = $(id); if (b) b.addEventListener('click', () => { const d = $('doc'); if (d) d.close(); }); });
+}
+const HELP = { ctrl: ['ctrlTitle', 'ctrlHint'], expert: ['expertTitle', 'expertHint'], btsnoop: ['laTitle', 'laIntro'],
+  publiclog: ['publicLogLabel', 'helpPublicLog'], diaglog: ['diagLogLabel', 'helpDiagLog'], disclaimer: ['footDisclaimer', 'disclaimerText'] };
+function openHelp(key) {
+  const m = HELP[key]; if (!m) return; const dlg = $('help'); if (!dlg) return;
+  $('help-title').textContent = t(m[0]);
+  const bo = $('help-body'); if (bo) { const v = t(m[1]); if (/[<&]/.test(v)) bo.innerHTML = v; else bo.textContent = v; } // scan-ok: our own translation table
+  if (dlg.showModal) { try { dlg.showModal(); } catch (e) { dlg.setAttribute('open', ''); } } else dlg.setAttribute('open', '');
+}
+function closeHelp() { const dlg = $('help'); if (dlg && dlg.close) dlg.close(); }
+
+// =====================================================================================
+// Bluetooth-log (btsnoop) frame lister (verbatim iScooter feature)
+// =====================================================================================
 // Local only, nothing leaves the browser (CSP self). Modelled on the NAVEE log parser
 // (lb-tool-web/drivers/navee.js: extractAuthFromLog / _scanAuthFrame / _tryDecompress / zip handling).
 // HONESTY: the exact CMD/SUB that carries the 6-digit connection PIN is NOT known from static
@@ -358,9 +633,20 @@ async function onAnalyze(){
   catch(e){ st.textContent='error: '+e; }
 }
 
-window.onLangChange = ()=>{ $('enc-state').textContent = t('encNone'); fillSelects(); };
-document.addEventListener('DOMContentLoaded', ()=>{
-  applyI18n(); fillSelects(); wire();
-  $('enc-state').textContent = t('encNone');
-  log('build ' + BUILD + ' ready');
+// =====================================================================================
+// init
+// =====================================================================================
+window.addEventListener('DOMContentLoaded', () => {
+  initLangSwitch();
+  initTheme();
+  wireDocViewer();
+  wire();
+  try { const p = localStorage.getItem(LS.PUBLOG); if (p === '0') publicLog = false; } catch (e) {}
+  { const pl = $('public-log'); if (pl) pl.checked = publicLog; }
+  buildModelDropdown();
+  fillSpeedTargets();
+  applyLang();
+  setStatus('disconnected');
+  { const el = $('platform-note'); if (el) el.hidden = !!navigator.bluetooth; }
+  logDiagnosticHeader();
 });
