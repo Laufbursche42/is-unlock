@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>iScooter unlock</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png">
+<link rel="stylesheet" href="styles.css?v=2">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>iScooter unlock</h1>
+    <div class="head-right">
+      <span class="status" id="status" data-t="stDisconnected">nicht verbunden</span>
+      <div class="head-tools">
+        <button class="theme-btn" id="btn-theme" title="Theme">◐</button>
+        <span class="langs" id="langs"></span>
+      </div>
+    </div>
+  </header>
+
+  <p class="warn platform-note" id="platform-note"></p>
+
+  <section class="card">
+    <h2 data-t="s1Title">1. Modell und Verbindung</h2>
+    <div class="set-row">
+      <label for="model-in" data-t="modelLabel">Modell</label>
+      <select id="model-in"></select>
+    </div>
+    <p class="hint" id="enc-state"></p>
+    <div class="btns">
+      <button class="primary span2" id="btn-conn" data-t="btnConnect">Verbinden</button>
+    </div>
+    <p class="hint" id="devinfo"></p>
+  </section>
+
+  <section class="card">
+    <h2 data-t="liveTitle">2. Telemetrie live</h2>
+    <div class="grid">
+      <div class="tile"><span class="tk" data-t="tSpeed">Tempo</span><b id="t-speed">-</b></div>
+      <div class="tile"><span class="tk" data-t="tBatt">Akku</span><b id="t-batt">-</b></div>
+      <div class="tile"><span class="tk" data-t="tVolt">Spannung</span><b id="t-volt">-</b></div>
+      <div class="tile"><span class="tk" data-t="tCurr">Strom/Leistung</span><b id="t-curr">-</b></div>
+      <div class="tile"><span class="tk" data-t="tTrip">Fahrt</span><b id="t-trip">-</b></div>
+      <div class="tile"><span class="tk" data-t="tTotal">Gesamt</span><b id="t-total">-</b></div>
+      <div class="tile"><span class="tk" data-t="tMax">Max-Tempo</span><b id="t-max">-</b></div>
+      <div class="tile"><span class="tk" data-t="tLock">Sperre</span><b id="t-lock">-</b></div>
+      <div class="tile"><span class="tk" data-t="tErr">Fehler</span><b id="t-err">-</b></div>
+      <div class="tile"><span class="tk" data-t="tFw">Firmware</span><b id="t-fw">-</b></div>
+    </div>
+    <p class="hint" id="live-note"></p>
+  </section>
+
+  <section class="card" id="card-controls">
+    <h2 data-t="ctrlTitle">3. Steuerung</h2>
+
+    <div class="ctrl-block">
+      <h3 data-t="cSpeedLimit">Speed-Limit / Maximaltempo</h3>
+      <div class="set-row">
+        <input type="number" id="speed-kmh" min="1" max="60" step="1" value="25">
+        <span>km/h</span>
+        <select id="speed-target"></select>
+      </div>
+      <div class="btns">
+        <button id="btn-setspeed" data-t="btnSetSpeed">Setzen</button>
+      </div>
+      <p class="hint" id="speed-note"></p>
+    </div>
+
+    <div class="ctrl-block">
+      <h3 data-t="cCruise">Tempomat (Cruise)</h3>
+      <div class="btns">
+        <button id="btn-cruise-on" data-t="btnOn">An</button>
+        <button id="btn-cruise-off" data-t="btnOff">Aus</button>
+      </div>
+    </div>
+
+    <div class="ctrl-block">
+      <h3 data-t="cKick">Kickstart (Zero-Start)</h3>
+      <div class="btns">
+        <button id="btn-kick-on" data-t="btnZeroOn">Zero-Start an</button>
+        <button id="btn-kick-off" data-t="btnZeroOff">Zero-Start aus</button>
+      </div>
+    </div>
+
+    <div class="ctrl-block">
+      <h3 data-t="cLock">Sperre und Licht</h3>
+      <div class="btns">
+        <button id="btn-lock" data-t="btnLock">Sperren</button>
+        <button id="btn-unlock" data-t="btnUnlock">Entsperren</button>
+        <button id="btn-light-on" data-t="btnLightOn">Licht an</button>
+        <button id="btn-light-off" data-t="btnLightOff">Licht aus</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" id="card-expert">
+    <h2 data-t="expertTitle">4. Experten-Modus</h2>
+    <p class="hint" data-t="expertHint"></p>
+    <div class="ctrl-block">
+      <h3 data-t="eReg">Register schreiben (CMD 0x20)</h3>
+      <div class="set-row">
+        <label data-t="eRegNr">Register</label>
+        <input type="number" id="reg-nr" min="0" max="255" value="30">
+        <label data-t="eRegVal">Wert</label>
+        <input type="number" id="reg-val" min="0" max="65535" value="250">
+      </div>
+      <div class="btns"><button id="btn-writereg" data-t="btnWriteReg">Register schreiben</button></div>
+    </div>
+    <div class="ctrl-block">
+      <h3 data-t="eRead">Register lesen (CMD 0x06)</h3>
+      <div class="set-row">
+        <label data-t="eRegNr">Register</label>
+        <input type="number" id="read-addr" min="0" max="255" value="26">
+        <label data-t="eCount">Anzahl</label>
+        <input type="number" id="read-count" min="1" max="60" value="52">
+      </div>
+      <div class="btns"><button id="btn-readreg" data-t="btnReadReg">Lesen anstoßen</button></div>
+    </div>
+    <div class="ctrl-block">
+      <h3 data-t="eRaw">Roh-Frame senden</h3>
+      <div class="set-row">
+        <input type="text" id="raw-hex" class="raw-in" placeholder="55 AA 04 20 03 1E FA 00">
+      </div>
+      <div class="btns">
+        <button id="btn-raw" data-t="btnRaw">Senden (Prüfsumme + XOR auto)</button>
+        <button id="btn-raw-plain" data-t="btnRawPlain">Roh senden (unverändert)</button>
+      </div>
+    </div>
+    <div class="set-row">
+      <label data-t="eXor">Modell-XOR</label>
+      <select id="xor-mode">
+        <option value="0">keiner (0x00)</option>
+        <option value="0x34">0x34</option>
+        <option value="0x55">0x55</option>
+        <option value="0x39">0x39</option>
+        <option value="0x18">0x18</option>
+        <option value="0x7a">0x7a</option>
+        <option value="0xd8">0xd8</option>
+      </select>
+    </div>
+  </section>
+
+  <section class="card" id="card-loganalyze">
+    <h2 data-t="laTitle">5. Bluetooth-Log analysieren</h2>
+    <p class="hint" data-t="laIntro"></p>
+    <div class="set-row">
+      <input type="file" id="la-file" accept=".log,.gz,.zip">
+      <button id="btn-analyze" data-t="laBtn">Analysieren</button>
+    </div>
+    <p class="hint" id="la-status"></p>
+    <pre id="la-out" class="log" hidden></pre>
+    <p class="hint" data-t="laHint"></p>
+  </section>
+
+  <section class="card">
+    <h2 data-t="logTitle">Protokoll</h2>
+    <pre id="log" class="log"></pre>
+  </section>
+
+  <footer>
+    <p class="hint" data-t="footer"></p>
+  </footer>
+</div>
+<script src="i18n.js?v=2"></script>
+<script src="app.js?v=2"></script>
+</body>
+</html>
