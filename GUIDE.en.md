@@ -4,6 +4,8 @@
 > It is not a finished product. Error-free operation is not promised and there is no warranty. Whatever
 > you do with it, you do at your own risk and on your own vehicle only.
 
+> **Important for error reports:** switch on the **Diagnostic log** at the bottom of the page *before* you connect to the scooter. Only then is the full connection handshake captured - and those are exactly the lines we need in a [ticket](https://github.com/Laufbursche42/Laufbursche42/issues) to reproduce a problem.
+
 ## 1. What you need
 
 Everything happens in the browser over Web Bluetooth: pick the model, connect, set the speed, switch
@@ -144,3 +146,6 @@ what was sent and received.
 
 Raising the maximum speed lifts the factory limit. The type approval (ABE) is then void and riding on
 public roads is no longer allowed. Use it on your own vehicle and at your own risk only.
+
+## Contribute
+Want to find out if and how tuning works on your scooter? Test this tool on your own vehicle and open a ticket on [GitHub](https://github.com/Laufbursche42/Laufbursche42/issues) - with your model and what worked (or did not). That way we figure out together what is possible on which model.

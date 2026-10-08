@@ -41,12 +41,26 @@ const REG_LOCK = 0xf6;          // electronic lock: 1 = lock, 0 = unlock
 const REG_HEADLIGHT_T3 = 0xf2;  // headlight on transport profile 3
 const REG_LIMIT_ENABLE = 0x72;  // cruise/limit mode on/off: 1 = on, 0 = off
 const REG_KICKSTART = 0x7e;     // zero-start candidate register
-// Poll block that covers registers 0x1a..0x4e (speed, battery, voltage, current, trip, total, error).
-const POLL = { addr:0x1a, count:0x34, everyMs:2000 };
-// Telemetry registers (dual-battery dashboard). %.01f fields are raw/10.
+const REG_LIGHTMODE = 0xf4;     // light mode / brightness index (SwitchLightMode)
+// Proven main-bank poll cycle (getMainPageNewDate4): four SendReadCmdWithAddr2 blocks on the main
+// dashboard bank. The BLE/TK-bank reads the app also issues are omitted on purpose - this page keeps a
+// single flat register map, so a BLE/TK-bank read would overwrite overlapping main-bank registers;
+// those banks stay gated.
+const POLL_BLOCKS = [
+  { addr:0x1a, count:0x34 },  // 26..77:   speed/batt/volt/curr/trip/total/error/ride-time
+  { addr:0x6c, count:0x34 },  // 108..159: extended dashboard registers
+  { addr:0xc2, count:0x2c },  // 194..237: flags bank incl. the 0xd3 light bitfield (211)
+  { addr:0xea, count:0x20 },  // 234..265: setting read-back (speed-limit / lock registers)
+];
+const POLL_MS = 2000;
+// Telemetry registers (RefreshInfo4 dual-battery dashboard, the most complete variant). Speed and
+// voltage use the re-disassembled /100 divisor (float 0x42c80000 = 100.0f); max speed and ride time
+// are 32-bit quantities spread over two consecutive registers (low, high).
 const TELE = {
-  speed:{reg:39, div:10}, batt:{reg:34, div:1}, volt:{reg:74, div:10}, curr:{reg:76, div:10},
-  trip:{reg:37, div:10}, totalLo:{reg:41}, totalHi:{reg:42}, max:{reg:1, div:10},
+  speed:{reg:39, div:100}, speedFallback:{reg:38, div:1000}, batt:{reg:34, div:1},
+  volt:{reg:74, div:100}, curr:{reg:76, div:10},
+  trip:{reg:37, div:10}, totalLo:{reg:41}, totalHi:{reg:42},
+  maxLo:{reg:191}, maxHi:{reg:192}, rideLo:{reg:50}, rideHi:{reg:51},
   err:{reg:27}, lock:{reg:178}, fw:{reg:21},
 };
 
@@ -68,6 +82,21 @@ function buildFrame(cmd, sub, reg, payload){
 function applyXor(frame, key){ return key ? frame.map(b => b ^ key) : frame; }
 function reg16LE(v){ v &= 0xffff; return [v & 0xff, (v >> 8) & 0xff]; }
 function hex(bytes){ return bytes.map(b=>b.toString(16).padStart(2,'0').toUpperCase()).join(' '); }
+
+// Load-time protocol self-test: the builder must reproduce a known-good device frame, and every
+// built frame must pass the frame validator/checksum. Not a tautology - a real builder<->vector check.
+const FRAME_OK = (function(){
+  const eq = (a, b) => a.length === b.length && a.every((v, i) => (v & 0xff) === (b[i] & 0xff));
+  // Known-vector: the proven byte-exact version/handshake frame TestSendMsg
+  // (decompiled app, decomp.c:3113-3136): 55 AA 02 FF 01 03 FA FE.
+  const kv = eq(buildFrame(0xFF, 0x01, 0x03, []), [0x55, 0xAA, 0x02, 0xFF, 0x01, 0x03, 0xFA, 0xFE]);
+  // Round-trip: a representative write (SendWriteCmd_HB, CMD 0x20 SUB 0x03) and the poll read
+  // (SendReadCmdWithAddr, CMD 0x06 SUB 0x01) must pass frameLenAt (same checksum the device verifies).
+  const wr = buildFrame(0x20, 0x03, 0x7d, reg16LE(27000));
+  const rd = buildFrame(0x06, 0x01, POLL_BLOCKS[0].addr, [POLL_BLOCKS[0].count & 0xff]);
+  const rt = frameLenAt(wr, 0, 0) === wr.length && frameLenAt(rd, 0, 0) === rd.length;
+  return kv && rt;
+})();
 
 // --------------------------- helpers ---------------------------
 const $ = (id) => document.getElementById(id);
@@ -95,7 +124,6 @@ function applyLang() {
   { const el = $('build-ver'); if (el) el.textContent = t('buildLabel') + ' ' + BUILD; }
   { const el = $('enc-state'); if (el) el.textContent = t('encNone'); }
   document.querySelectorAll('#langs button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
-  buildModelDropdown();
   fillSpeedTargets();
   { const el = $('status'); setStatus(el ? el.dataset.state : 'disconnected'); }
   refreshTele();
@@ -116,7 +144,7 @@ function initLangSwitch() {
 function applyTheme(dark) {
   document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
   const b = $('btn-theme');
-  if (b) { b.innerHTML = dark ? '&#9728;' : '&#9790;'; b.setAttribute('aria-label', t(dark ? 'themeToLight' : 'themeToDark')); b.title = b.getAttribute('aria-label'); } // scan-ok: fixed character (sun/moon), not user input
+  if (b) { b.textContent = dark ? '\u2600' : '\u263E'; b.setAttribute('aria-label', t(dark ? 'themeToLight' : 'themeToDark')); b.title = b.getAttribute('aria-label'); }
   try { localStorage.setItem(LS.THEME, dark ? 'dark' : 'light'); } catch (e) {}
 }
 function initTheme() {
@@ -146,10 +174,11 @@ function anonymize(s) {
   return redact(String(s).replace(/\x01[^\x01]*\x01/g, 'XX').replace(/\x01/g, ''));
 }
 function logLine(cls, text) {
-  logBuffer.push({ raw: text, cls: cls });
+  const safe = '[' + new Date().toTimeString().slice(0, 8) + '] ' + text;
+  logBuffer.push({ raw: safe, cls: cls });
   const el = $('log'); if (!el) return;
   const span = document.createElement('span');
-  if (cls) span.className = cls; span.textContent = anonymize(text) + '\n';
+  if (cls) span.className = cls; span.textContent = anonymize(safe) + '\n';
   el.appendChild(span); el.scrollTop = el.scrollHeight;
 }
 function renderLog() {
@@ -177,12 +206,14 @@ const logErr = (t) => logLine('log-err', '!!! ' + t);
 const logDiag = (t) => { if (diag) logLine('', '... ' + t); };
 function logDiagnosticHeader() {
   logLine('', '=== is-unlock diagnostic ===');
-  logLine('', 'time: ' + new Date().toISOString());
   logLine('', 'build: ' + BUILD);
-  logLine('', 'userAgent: ' + navigator.userAgent);
+  logLine('', 'time: ' + new Date().toISOString());
+  logLine('', 'userAgent: ' + (navigator.userAgent || '?'));
   logLine('', 'platform: ' + (navigator.platform || '?'));
   logLine('', 'webBluetooth: ' + (navigator.bluetooth ? 'yes' : 'no'));
-  logLine('', '============================');
+  logLine('', 'protocol self-test: ' + (FRAME_OK ? 'OK' : 'FAILED'));
+  logLine('', '================================');
+  if (!FRAME_OK) logErr('protocol self-test FAILED - frame builder/validator mismatch');
 }
 
 // =====================================================================================
@@ -224,14 +255,22 @@ function te(sel){ const c=TELE[sel]; const raw=regBank[c.reg]; return raw===unde
 // Each tile carries a presence test and a formatter. A tile is added to the grid only once its value
 // first arrives, so the scooter reveals exactly the fields it reports.
 const TILES = [
-  { id:'t-speed', key:'tSpeed', seen:()=>te('speed')!=null,        val:()=>te('speed').toFixed(1)+' km/h' },
+  { id:'t-speed', key:'tSpeed', seen:()=>regBank[TELE.speed.reg]!==undefined,
+    val:()=>{ const r=regBank[TELE.speed.reg];
+      const v = (r!==0) ? r/TELE.speed.div
+        : (regBank[TELE.speedFallback.reg]!==undefined ? regBank[TELE.speedFallback.reg]/TELE.speedFallback.div : 0);
+      return v.toFixed(1)+' km/h'; } },
   { id:'t-batt',  key:'tBatt',  seen:()=>te('batt')!=null,         val:()=>te('batt')+' %' },
   { id:'t-volt',  key:'tVolt',  seen:()=>te('volt')!=null,         val:()=>te('volt').toFixed(1)+' V' },
   { id:'t-curr',  key:'tCurr',  seen:()=>te('curr')!=null,         val:()=>te('curr').toFixed(1)+' A' },
   { id:'t-trip',  key:'tTrip',  seen:()=>te('trip')!=null,         val:()=>te('trip').toFixed(1)+' km' },
   { id:'t-total', key:'tTotal', seen:()=>regBank[TELE.totalLo.reg]!==undefined,
     val:()=>(((regBank[TELE.totalHi.reg]||0)*65536+regBank[TELE.totalLo.reg])/10).toFixed(1)+' km' },
-  { id:'t-max',   key:'tMax',   seen:()=>te('max')!=null,          val:()=>te('max').toFixed(1)+' km/h' },
+  { id:'t-max',   key:'tMax',   seen:()=>regBank[TELE.maxLo.reg]!==undefined,
+    val:()=>(((regBank[TELE.maxHi.reg]||0)*65536+regBank[TELE.maxLo.reg])/1000).toFixed(1)+' km/h' },
+  { id:'t-ride',  key:'tRide',  seen:()=>regBank[TELE.rideLo.reg]!==undefined,
+    val:()=>{ const s=(regBank[TELE.rideHi.reg]||0)*65536+regBank[TELE.rideLo.reg];
+      return Math.floor(s/3600)+'h '+Math.floor((s%3600)/60)+'m '+(s%60)+'s'; } },
   { id:'t-lock',  key:'tLock',  seen:()=>regBank[TELE.lock.reg]!==undefined,
     val:()=>regBank[TELE.lock.reg] ? t('valLocked') : t('valUnlocked') },
   { id:'t-err',   key:'tErr',   seen:()=>regBank[TELE.err.reg]!==undefined,
@@ -299,17 +338,21 @@ async function connect(){
     startPoll();
   }catch(e){ logErr('connect aborted: ' + (e && e.message ? e.message : e)); setStatus('disconnected'); }
 }
-function startPoll(){ stopPoll(); readReg(POLL.addr, POLL.count);
-  pollTimer = setInterval(()=>{ if(connected) readReg(POLL.addr, POLL.count); }, POLL.everyMs); }
+function pollAll(){ for(const blk of POLL_BLOCKS) readReg(blk.addr, blk.count); }
+function startPoll(){ stopPoll(); pollAll();
+  pollTimer = setInterval(()=>{ if(connected) pollAll(); }, POLL_MS); }
 function stopPoll(){ if(pollTimer){ clearInterval(pollTimer); pollTimer=null; } }
 async function disconnect(){ stopPoll(); try{ if(device && device.gatt.connected) device.gatt.disconnect(); }catch(e){} onDisc(); }
 function onDisc(){ connected=false; writeChar=null; notifyChar=null; transport=null;
   setStatus('disconnected'); setControlsEnabled(false); revealInteractive(false); resetTiles();
   const el = $('devinfo'); if (el) el.textContent = ''; logSys('disconnected'); }
 
-function revealInteractive(on){ const ui = $('interactive-ui'); if (ui) ui.hidden = !on; }
+function revealInteractive(on){ ['live-card','batt-card','more-card','raw-card'].forEach(id => { const el = $(id); if (el) el.hidden = !on; }); }
 const CONTROL_IDS = ['btn-setspeed','btn-cruise-on','btn-cruise-off','btn-kick-on','btn-kick-off',
-  'btn-lock','btn-unlock','btn-light-on','btn-light-off','btn-writereg','btn-readreg','btn-raw','btn-raw-plain'];
+  'btn-lock','btn-unlock','btn-light-on','btn-light-off',
+  'btn-brake-on','btn-brake-off','btn-hub-on','btn-hub-off','btn-amb-on','btn-amb-off',
+  'btn-alarm-on','btn-alarm-off','btn-lsd-on','btn-lsd-off',
+  'btn-writereg','btn-readreg','btn-raw','btn-raw-plain','btn-lightmode','btn-version'];
 function setControlsEnabled(on){ CONTROL_IDS.forEach(id => { const e = $(id); if (e) e.disabled = !on; }); }
 
 // --------------------------- status ---------------------------
@@ -328,10 +371,6 @@ function setStatus(s){
 // control wiring
 // =====================================================================================
 function makeOption(value, label){ const o=document.createElement('option'); o.value=value; o.textContent=label; return o; }
-function buildModelDropdown(){
-  const mi=$('model-in'); if(!mi) return; const prev = mi.value || 'auto';
-  mi.textContent=''; mi.appendChild(makeOption('auto', t('modelAuto'))); mi.value = prev;
-}
 function fillSpeedTargets(){
   const st=$('speed-target'); if(!st) return; const prev = st.value;
   st.textContent=''; SPEED_TARGETS.forEach(s=> st.appendChild(makeOption(s.reg, s.label)));
@@ -359,6 +398,23 @@ function wire(){
 
   $('btn-light-on').addEventListener('click', ()=>{ d3set(D3_BITS.headlight, true,  'headlight'); if(transport && transport.id===3) writeReg(REG_HEADLIGHT_T3, 1); });
   $('btn-light-off').addEventListener('click', ()=>{ d3set(D3_BITS.headlight, false, 'headlight'); if(transport && transport.id===3) writeReg(REG_HEADLIGHT_T3, 0); });
+
+  // 0xd3 light/switch bitfield (same read-modify-write as the headlight).
+  $('btn-brake-on').addEventListener('click',  ()=> d3set(D3_BITS.brakelight, true,  'brake light'));
+  $('btn-brake-off').addEventListener('click', ()=> d3set(D3_BITS.brakelight, false, 'brake light'));
+  $('btn-hub-on').addEventListener('click',    ()=> d3set(D3_BITS.hub,  true,  'hub light'));
+  $('btn-hub-off').addEventListener('click',   ()=> d3set(D3_BITS.hub,  false, 'hub light'));
+  $('btn-amb-on').addEventListener('click',    ()=> d3set(D3_BITS.ambient, true,  'ambient light'));
+  $('btn-amb-off').addEventListener('click',   ()=> d3set(D3_BITS.ambient, false, 'ambient light'));
+  $('btn-alarm-on').addEventListener('click',  ()=> d3set(D3_BITS.lockWarn, true,  'overspeed alarm'));
+  $('btn-alarm-off').addEventListener('click', ()=> d3set(D3_BITS.lockWarn, false, 'overspeed alarm'));
+  $('btn-lsd-on').addEventListener('click',    ()=> d3set(D3_BITS.lockShutDown, true,  'shutdown after lock'));
+  $('btn-lsd-off').addEventListener('click',   ()=> d3set(D3_BITS.lockShutDown, false, 'shutdown after lock'));
+
+  $('btn-lightmode').addEventListener('click', ()=> writeRegNamed('light mode', REG_LIGHTMODE, parseInt($('lightmode-idx').value)&0xffff));
+  // Version / handshake request (TestSendMsg, byte-exact 55 AA 02 FF 01 03 FA FE); the device answers
+  // with its version registers (e.g. the firmware tile).
+  $('btn-version').addEventListener('click', ()=>{ sendFrame(buildFrame(0xFF, 0x01, 0x03, [])); logSys('version request'); });
 
   $('btn-lock').addEventListener('click', ()=> writeRegNamed('lock',   REG_LOCK, 1));
   $('btn-unlock').addEventListener('click', ()=> writeRegNamed('unlock', REG_LOCK, 0));
@@ -469,6 +525,7 @@ function wireDocViewer() {
   ['doc-x', 'doc-close'].forEach(id => { const b = $(id); if (b) b.addEventListener('click', () => { const d = $('doc'); if (d) d.close(); }); });
 }
 const HELP = { ctrl: ['ctrlTitle', 'ctrlHint'], expert: ['expertTitle', 'expertHint'], btsnoop: ['laTitle', 'laIntro'],
+  batt: ['help_batt_t', 'help_batt_b'],
   publiclog: ['publicLogLabel', 'helpPublicLog'], diaglog: ['diagLogLabel', 'helpDiagLog'], disclaimer: ['footDisclaimer', 'disclaimerText'] };
 function openHelp(key) {
   const m = HELP[key]; if (!m) return; const dlg = $('help'); if (!dlg) return;
@@ -643,7 +700,6 @@ window.addEventListener('DOMContentLoaded', () => {
   wire();
   try { const p = localStorage.getItem(LS.PUBLOG); if (p === '0') publicLog = false; } catch (e) {}
   { const pl = $('public-log'); if (pl) pl.checked = publicLog; }
-  buildModelDropdown();
   fillSpeedTargets();
   applyLang();
   setStatus('disconnected');

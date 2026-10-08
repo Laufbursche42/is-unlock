@@ -8,23 +8,25 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png">
-<link rel="stylesheet" href="styles.css?v=3">
+<link rel="stylesheet" href="styles.css?v=7">
 </head>
 <body>
 <div class="wrap">
   <header>
     <h1>Laufbursche <span data-t="brandSub"></span></h1>
     <div class="head-right">
-      <span class="status" id="status" data-state="disconnected" data-t="stDisconnected"></span>
+      <span class="status" id="status" data-state="disconnected">disconnected</span>
       <div class="head-tools">
-        <button type="button" class="theme-btn" id="btn-theme" aria-label="Theme">&#9728;</button>
-        <div class="langs" id="langs" role="group" aria-label="Language">
+        <button type="button" class="theme-btn" id="btn-theme">&#9728;</button>
+        <div class="langs" id="langs" role="group">
           <button type="button" data-lang="de" aria-pressed="true">DE</button>
           <button type="button" data-lang="en" aria-pressed="false">EN</button>
         </div>
       </div>
     </div>
   </header>
+
+  <p class="hint infobox" data-t="infoBannerHtml"></p>
 
   <p class="warn" id="platform-note" data-t="platformNote" hidden></p>
 
@@ -38,115 +40,12 @@
 
   <div class="card">
     <h2 data-t="s2Title"></h2>
-    <div class="set-row">
-      <label for="model-in" data-t="modelLabel"></label>
-      <select id="model-in"></select>
+    <div class="log-opt">
+      <span data-t="showallLabel"></span>
+      <input type="checkbox" id="showall">
     </div>
-    <p class="hint" data-t="modelHint"></p>
-    <div class="btns">
-      <button class="primary span2" id="btn-conn" data-t="btnConnect"></button>
-    </div>
-    <p class="hint" id="devinfo"></p>
-    <p class="hint" id="enc-state"></p>
-    <p class="hint" data-t="controlsHint"></p>
-  </div>
-
-  <div id="interactive-ui" hidden>
-    <div class="card">
-      <h2 data-t="liveTitle"></h2>
-      <div class="grid" id="tiles"></div>
-      <p class="hint" id="tiles-empty" data-t="tilesEmpty"></p>
-      <p class="hint" data-t="liveHint"></p>
-    </div>
-
-    <div class="card">
-      <div class="card-head"><h2 data-t="ctrlTitle"></h2><button type="button" class="help-btn" data-help="ctrl" aria-label="Info">?</button></div>
-
-      <div class="ctrl-block">
-        <h3 data-t="cSpeedLimit"></h3>
-        <div class="set-row">
-          <input type="number" id="speed-kmh" min="1" max="60" step="1" value="25">
-          <select id="speed-target"></select>
-        </div>
-        <div class="btns"><button class="span2" id="btn-setspeed" data-t="btnSetSpeed" disabled></button></div>
-        <p class="hint" data-t="speedNote"></p>
-      </div>
-
-      <div class="ctrl-block">
-        <h3 data-t="cCruise"></h3>
-        <div class="btns">
-          <button id="btn-cruise-on" data-t="btnOn" disabled></button>
-          <button id="btn-cruise-off" data-t="btnOff" disabled></button>
-        </div>
-      </div>
-
-      <div class="ctrl-block">
-        <h3 data-t="cKick"></h3>
-        <div class="btns">
-          <button id="btn-kick-on" data-t="btnZeroOn" disabled></button>
-          <button id="btn-kick-off" data-t="btnZeroOff" disabled></button>
-        </div>
-      </div>
-
-      <div class="ctrl-block">
-        <h3 data-t="cLock"></h3>
-        <div class="btns">
-          <button id="btn-lock" data-t="btnLock" disabled></button>
-          <button id="btn-unlock" data-t="btnUnlock" disabled></button>
-          <button id="btn-light-on" data-t="btnLightOn" disabled></button>
-          <button id="btn-light-off" data-t="btnLightOff" disabled></button>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-head"><h2 data-t="expertTitle"></h2><button type="button" class="help-btn" data-help="expert" aria-label="Info">?</button></div>
-      <p class="hint" data-t="expertHint"></p>
-      <div class="ctrl-block">
-        <h3 data-t="eReg"></h3>
-        <div class="set-row">
-          <label data-t="eRegNr"></label>
-          <input type="number" id="reg-nr" min="0" max="255" value="30">
-          <label data-t="eRegVal"></label>
-          <input type="number" id="reg-val" min="0" max="65535" value="250">
-        </div>
-        <div class="btns"><button class="span2" id="btn-writereg" data-t="btnWriteReg" disabled></button></div>
-      </div>
-      <div class="ctrl-block">
-        <h3 data-t="eRead"></h3>
-        <div class="set-row">
-          <label data-t="eRegNr"></label>
-          <input type="number" id="read-addr" min="0" max="255" value="26">
-          <label data-t="eCount"></label>
-          <input type="number" id="read-count" min="1" max="60" value="52">
-        </div>
-        <div class="btns"><button class="span2" id="btn-readreg" data-t="btnReadReg" disabled></button></div>
-      </div>
-      <div class="ctrl-block">
-        <h3 data-t="eRaw"></h3>
-        <input type="text" id="raw-hex" class="raw-in" placeholder="55 AA 04 20 03 1E FA 00">
-        <div class="btns">
-          <button id="btn-raw" data-t="btnRaw" disabled></button>
-          <button id="btn-raw-plain" data-t="btnRawPlain" disabled></button>
-        </div>
-      </div>
-      <div class="set-row">
-        <label for="xor-mode" data-t="eXor"></label>
-        <select id="xor-mode">
-          <option value="0" data-t="xorNone"></option>
-          <option value="0x34">0x34</option>
-          <option value="0x55">0x55</option>
-          <option value="0x39">0x39</option>
-          <option value="0x18">0x18</option>
-          <option value="0x7a">0x7a</option>
-          <option value="0xd8">0xd8</option>
-        </select>
-      </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-head"><h2 data-t="laTitle"></h2><button type="button" class="help-btn" data-help="btsnoop" aria-label="Info">?</button></div>
+    <hr class="sep">
+    <div class="card-head"><h3 data-t="laTitle"></h3><button type="button" class="help-btn" data-help="btsnoop" aria-label="Info">?</button></div>
     <p class="hint" data-t="laIntro"></p>
     <div class="set-row">
       <input type="file" id="la-file" accept=".log,.gz,.zip">
@@ -155,6 +54,149 @@
     <p class="hint" id="la-status"></p>
     <pre id="la-out" hidden></pre>
     <p class="hint" data-t="laHint"></p>
+    <div class="btns">
+      <button class="primary span2" id="btn-conn" data-t="btnConnect"></button>
+    </div>
+    <p class="hint" id="devinfo"></p>
+    <p class="hint" id="enc-state"></p>
+    <p class="hint" data-t="controlsHint"></p>
+  </div>
+
+  <div class="card" id="live-card" hidden>
+    <div class="card-head"><h2 data-t="liveTitle"></h2></div>
+    <div class="grid" id="tiles">
+      <div class="tile" id="t-speed-tile"><b id="t-speed">-</b><small data-t="tSpeed"></small></div>
+      <div class="tile" id="t-max-tile"><b id="t-max">-</b><small data-t="tMax"></small></div>
+      <div class="tile" id="t-curr-tile"><b id="t-curr">-</b><small data-t="tCurr"></small></div>
+      <div class="tile" id="t-trip-tile"><b id="t-trip">-</b><small data-t="tTrip"></small></div>
+      <div class="tile" id="t-total-tile"><b id="t-total">-</b><small data-t="tTotal"></small></div>
+      <div class="tile" id="t-ride-tile"><b id="t-ride">-</b><small data-t="tRide"></small></div>
+      <div class="tile" id="t-lock-tile"><b id="t-lock">-</b><small data-t="tLock"></small></div>
+      <div class="tile" id="t-err-tile"><b id="t-err">-</b><small data-t="tErr"></small></div>
+      <div class="tile" id="t-fw-tile"><b id="t-fw">-</b><small data-t="tFw"></small></div>
+    </div>
+    <p class="hint" id="tiles-empty" data-t="tilesEmpty"></p>
+    <p class="hint" data-t="liveHint"></p>
+  </div>
+
+  <div class="card" id="batt-card" hidden>
+    <div class="card-head"><h2 data-t="battTitle"></h2><button type="button" class="help-btn" data-help="batt" aria-label="Info">?</button></div>
+    <div class="grid">
+      <div class="tile" id="t-batt-tile"><b id="t-batt">-</b><small data-t="tBatt"></small></div>
+      <div class="tile" id="t-volt-tile"><b id="t-volt">-</b><small data-t="tVolt"></small></div>
+    </div>
+    <p class="hint" data-t="battHint"></p>
+  </div>
+
+  <div class="card" id="more-card" hidden>
+    <div class="card-head"><h2 data-t="moreTitle"></h2><button type="button" class="help-btn" data-help="ctrl" aria-label="Info">?</button></div>
+
+    <h3 class="set-group" data-t="setgrpSpeed"></h3>
+    <label data-t="cSpeedLimit"></label>
+    <div class="set-row">
+      <input type="number" id="speed-kmh" min="1" max="60" step="1" value="25">
+      <select id="speed-target"></select>
+    </div>
+    <div class="btns"><button class="span2" id="btn-setspeed" data-t="btnSetSpeed" disabled></button></div>
+    <p class="hint" data-t="speedNote"></p>
+    <label data-t="cLock"></label>
+    <div class="btns">
+      <button id="btn-lock" data-t="btnLock" disabled></button>
+      <button id="btn-unlock" data-t="btnUnlock" disabled></button>
+    </div>
+
+    <h3 class="set-group" data-t="setgrpGeneral"></h3>
+    <label data-t="cCruise"></label>
+    <div class="btns">
+      <button id="btn-cruise-on" data-t="btnOn" disabled></button>
+      <button id="btn-cruise-off" data-t="btnOff" disabled></button>
+    </div>
+    <label data-t="cKick"></label>
+    <div class="btns">
+      <button id="btn-kick-on" data-t="btnZeroOn" disabled></button>
+      <button id="btn-kick-off" data-t="btnZeroOff" disabled></button>
+    </div>
+    <div class="btns">
+      <button id="btn-light-on" data-t="btnLightOn" disabled></button>
+      <button id="btn-light-off" data-t="btnLightOff" disabled></button>
+    </div>
+    <label data-t="cBrakeLight"></label>
+    <div class="btns">
+      <button id="btn-brake-on" data-t="btnOn" disabled></button>
+      <button id="btn-brake-off" data-t="btnOff" disabled></button>
+    </div>
+    <label data-t="cHubLight"></label>
+    <div class="btns">
+      <button id="btn-hub-on" data-t="btnOn" disabled></button>
+      <button id="btn-hub-off" data-t="btnOff" disabled></button>
+    </div>
+    <label data-t="cAmbient"></label>
+    <div class="btns">
+      <button id="btn-amb-on" data-t="btnOn" disabled></button>
+      <button id="btn-amb-off" data-t="btnOff" disabled></button>
+    </div>
+    <label data-t="cOverspeed"></label>
+    <div class="btns">
+      <button id="btn-alarm-on" data-t="btnOn" disabled></button>
+      <button id="btn-alarm-off" data-t="btnOff" disabled></button>
+    </div>
+    <label data-t="cLockShutdown"></label>
+    <div class="btns">
+      <button id="btn-lsd-on" data-t="btnOn" disabled></button>
+      <button id="btn-lsd-off" data-t="btnOff" disabled></button>
+    </div>
+  </div>
+
+  <div class="card" id="raw-card" hidden>
+    <div class="card-head"><h2 data-t="expertTitle"></h2><button type="button" class="help-btn" data-help="expert" aria-label="Info">?</button></div>
+    <p class="hint" data-t="expertHint"></p>
+
+    <h3 class="set-group" data-t="eReg"></h3>
+    <div class="set-row">
+      <label data-t="eRegNr"></label>
+      <input type="number" id="reg-nr" min="0" max="255" value="30">
+      <label data-t="eRegVal"></label>
+      <input type="number" id="reg-val" min="0" max="65535" value="250">
+    </div>
+    <div class="btns"><button class="span2" id="btn-writereg" data-t="btnWriteReg" disabled></button></div>
+
+    <h3 class="set-group" data-t="eRead"></h3>
+    <div class="set-row">
+      <label data-t="eRegNr"></label>
+      <input type="number" id="read-addr" min="0" max="255" value="26">
+      <label data-t="eCount"></label>
+      <input type="number" id="read-count" min="1" max="60" value="52">
+    </div>
+    <div class="btns"><button class="span2" id="btn-readreg" data-t="btnReadReg" disabled></button></div>
+
+    <h3 class="set-group" data-t="eRaw"></h3>
+    <input type="text" id="raw-hex" class="raw-in" placeholder="55 AA 04 20 03 1E FA 00">
+    <div class="btns">
+      <button id="btn-raw" data-t="btnRaw" disabled></button>
+      <button id="btn-raw-plain" data-t="btnRawPlain" disabled></button>
+    </div>
+    <div class="set-row">
+      <label for="xor-mode" data-t="eXor"></label>
+      <select id="xor-mode">
+        <option value="0" data-t="xorNone"></option>
+        <option value="0x34">0x34</option>
+        <option value="0x55">0x55</option>
+        <option value="0x39">0x39</option>
+        <option value="0x18">0x18</option>
+        <option value="0x7a">0x7a</option>
+        <option value="0xd8">0xd8</option>
+      </select>
+    </div>
+
+    <h3 class="set-group" data-t="eLight"></h3>
+    <div class="set-row">
+      <label data-t="eLightMode"></label>
+      <input type="number" id="lightmode-idx" min="0" max="255" value="0">
+      <button id="btn-lightmode" data-t="btnSetLightMode" disabled></button>
+    </div>
+
+    <h3 class="set-group" data-t="eVersion"></h3>
+    <div class="btns"><button class="span2" id="btn-version" data-t="btnVersion" disabled></button></div>
   </div>
 
   <div class="card">
@@ -190,7 +232,7 @@
       <a id="link-privacy" href="PRIVACY.de.md" data-doc="PRIVACY" data-t="footPrivacy"></a>
       <a id="link-trademarks" href="TRADEMARKS.de.md" data-doc="TRADEMARKS" data-t="footTrademarks"></a>
     </span>
-    <span class="ver" id="build-ver"></span>
+    <span class="foot-links"><span class="ver" id="build-ver"></span><a href="https://github.com/Laufbursche42/Laufbursche42/issues" target="_blank" rel="noopener" data-t="footIssue"></a></span>
     <a class="foot-copy" href="https://laufbursche42.github.io/Laufbursche42/" target="_blank" rel="noopener">Copyright (c) 2026 Laufbursche</a>
   </footer>
 </div>
@@ -214,6 +256,18 @@
   <div class="doc-body"><p id="help-body"></p></div>
   <div class="doc-foot">
     <button type="button" id="help-close" data-t="docClose"></button>
+  </div>
+</dialog>
+
+<dialog id="confirm" aria-labelledby="confirm-title">
+  <div class="doc-head">
+    <h3 id="confirm-title" data-t="confirmTitle"></h3>
+    <button type="button" id="confirm-x">&times;</button>
+  </div>
+  <div class="doc-body"><p id="confirm-body"></p></div>
+  <div class="doc-foot">
+    <button type="button" id="confirm-no" data-t="confirmCancel"></button>
+    <button type="button" id="confirm-ok" class="primary" data-t="confirmOk"></button>
   </div>
 </dialog>
 
