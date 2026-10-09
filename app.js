@@ -447,7 +447,7 @@ function wire(){
 
   document.querySelectorAll('.help-btn').forEach(btn => btn.addEventListener('click', () => openHelp(btn.getAttribute('data-help'))));
   ['help-x', 'help-close'].forEach(id => { const b = $(id); if (b) b.addEventListener('click', closeHelp); });
-  { const b = $('link-disclaimer'); if (b) b.addEventListener('click', e => { e.preventDefault(); openHelp('disclaimer'); }); }
+  { const b = $('link-disclaimer'); if (b) b.addEventListener('click', e => { e.preventDefault(); openDocFile(docFile('DISCLAIMER'), 'footDisclaimer'); }); }
 }
 
 // =====================================================================================
@@ -458,6 +458,7 @@ const DOC_TITLES = {
   'PRIVACY.de.md': 'footPrivacy', 'PRIVACY.md': 'footPrivacy',
   'LICENSE.de.md': 'footLicense', 'LICENSE.md': 'footLicense',
   'TRADEMARKS.de.md': 'footTrademarks', 'TRADEMARKS.md': 'footTrademarks',
+  'DISCLAIMER.de.md': 'footDisclaimer', 'DISCLAIMER.md': 'footDisclaimer',
   'README.md': 'footReadme'
 };
 const escHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -516,7 +517,7 @@ function openDocFile(file, titleKey) {
 function wireDocViewer() {
   document.addEventListener('click', e => {
     if (!e.target.closest) return;
-    const disc = e.target.closest('[data-open-disclaimer]'); if (disc) { e.preventDefault(); openHelp('disclaimer'); return; }
+    const disc = e.target.closest('[data-open-disclaimer]'); if (disc) { e.preventDefault(); openDocFile(docFile('DISCLAIMER'), 'footDisclaimer'); return; }
     const a = e.target.closest('[data-doc], [data-docfile]'); if (!a) return;
     e.preventDefault();
     const file = a.getAttribute('data-docfile');
@@ -527,7 +528,7 @@ function wireDocViewer() {
 }
 const HELP = { ctrl: ['ctrlTitle', 'ctrlHint'], expert: ['expertTitle', 'expertHint'], btsnoop: ['laTitle', 'laIntro'],
   batt: ['help_batt_t', 'help_batt_b'],
-  publiclog: ['publicLogLabel', 'helpPublicLog'], diaglog: ['diagLogLabel', 'helpDiagLog'], disclaimer: ['footDisclaimer', 'disclaimerText'] };
+  publiclog: ['publicLogLabel', 'helpPublicLog'], diaglog: ['diagLogLabel', 'helpDiagLog'] };
 function openHelp(key) {
   const m = HELP[key]; if (!m) return; const dlg = $('help'); if (!dlg) return;
   $('help-title').textContent = t(m[0]);
