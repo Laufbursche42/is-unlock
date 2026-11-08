@@ -3,7 +3,7 @@
 // Shell (header, footer, i18n, theme, doc viewer, anonymized log) matches the Laufbursche tool family;
 // the BLE protocol is the proven iScooter frame engine. The pre-commit cache-buster auto-bumps BUILD
 // and every ?v= in index.html on any web-asset change.
-const BUILD = 'v9';
+const BUILD = 'v10';
 
 // =====================================================================================
 // iScooter BLE protocol (ground truth - do not reinvent)
