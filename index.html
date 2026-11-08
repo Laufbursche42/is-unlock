@@ -8,13 +8,13 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png">
-<link rel="stylesheet" href="styles.css?v=10">
+<link rel="stylesheet" href="styles.css?v=11">
 <!-- Cloudflare Web Analytics --><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "1f2a3915448b4b68b4380423f2be4b09"}'></script><!-- scan-ok: Cloudflare Web Analytics beacon (token starts 1f2a39 ends 4b09); cookieless aggregate page metrics, see PRIVACY -->
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>Laufbursche <span data-t="brandSub"></span></h1>
+    <h1>Laufbursche <span data-t="brandSub">iScooter Tool</span></h1>
     <div class="head-right">
       <span class="status" id="status" data-state="disconnected">disconnected</span>
       <div class="head-tools">
@@ -27,159 +27,159 @@
     </div>
   </header>
 
-  <p class="hint infobox" data-t="infoBannerHtml"></p>
+  <p class="hint infobox" data-t="infoBannerHtml">Test-User gesucht - bitte hier via Ticket melden: <a href="https://github.com/Laufbursche42/Laufbursche42/issues" target="_blank" rel="noopener">GitHub Issues</a>.</p>
 
-  <p class="warn" id="platform-note" data-t="platformNote" hidden></p>
+  <p class="warn" id="platform-note" data-t="platformNote" hidden>Dieser Browser hat kein Web Bluetooth. Nutze Chrome bzw. Edge (Android/Desktop) oder Bluefy (iOS).</p>
 
   <div class="card">
-    <h2 data-t="s1Title"></h2>
-    <p class="hint" data-t="sub"></p>
-    <p class="hint" data-t="startHintGuide"></p>
-    <p class="warn" data-t="expWarn"></p>
-    <p class="hint" data-t="ownDevice"></p>
+    <h2 data-t="s1Title">So fängst du an</h2>
+    <p class="hint" data-t="sub">Live über Web Bluetooth mit deinem iScooter reden. Läuft in Bluefy (iOS) oder Chrome bzw. Edge (Android/Desktop). Nichts verlässt dein Gerät.</p>
+    <p class="hint" data-t="startHintGuide">Neu hier? In der <a href="GUIDE.de.md" data-doc="GUIDE" data-t="footGuide">Anleitung</a> steht jeder Schritt.</p>
+    <p class="warn" data-t="expWarn">Machbarkeitsstudie: Diese Seite zeigt, was das Bluetooth-Protokoll eines iScooter technisch möglich macht. Sie ist kein fertiges Produkt. Es gibt keine Gewährleistung. Alles was du hier tust, tust du auf eigenes Risiko. <a href="#" data-open-disclaimer>Haftungsausschluss lesen</a>.</p>
+    <p class="hint" data-t="ownDevice">Nur am eigenen Fahrzeug auf privatem Gelände. Das Anheben der Höchstgeschwindigkeit hebt die Drossel auf, die ABE erlischt und der Betrieb auf öffentlichen Wegen ist dann nicht erlaubt.</p>
   </div>
 
   <div class="card">
-    <h2 data-t="s2Title"></h2>
+    <h2 data-t="s2Title">Verbindung</h2>
     <div class="log-opt">
-      <span data-t="showallLabel"></span>
+      <span data-t="showallLabel">Alle Geräte zeigen (wenn deins nicht auftaucht)</span>
       <input type="checkbox" id="showall">
     </div>
     <hr class="sep">
-    <div class="card-head"><h3 data-t="laTitle"></h3><button type="button" class="help-btn" data-help="btsnoop" aria-label="Info">?</button></div>
-    <p class="hint" data-t="laIntro"></p>
+    <div class="card-head"><h3 data-t="laTitle">Bluetooth-Log analysieren</h3><button type="button" class="help-btn" data-help="btsnoop" aria-label="Info">?</button></div>
+    <p class="hint" data-t="laIntro">Alles läuft lokal im Browser (CSP self), nichts wird hochgeladen. Welcher genaue Befehl (CMD/SUB) die 6-stellige Verbindungs-PIN trägt, ist aus der statischen Analyse NICHT bekannt. Dieses Werkzeug behauptet daher nicht, das PIN-Frame zu finden. Es liest ein lokales btsnoop-Log und listet die iScooter-55-AA-Frames auf, die die App an die Schreib-Charakteristik gesendet hat, damit du den passenden Befehl selbst erkennst.</p>
     <div class="set-row">
       <input type="file" id="la-file" accept=".log,.gz,.zip">
-      <button id="btn-analyze" data-t="laBtn"></button>
+      <button id="btn-analyze" data-t="laBtn">Analysieren</button>
     </div>
     <p class="hint" id="la-status"></p>
     <pre id="la-out" hidden></pre>
-    <p class="hint" data-t="laHint"></p>
+    <p class="hint" data-t="laHint">So zeichnest du auf: Entwickleroptionen -> Bluetooth-HCI-Snoop-Log aktivieren, Bluetooth aus/an, in der Original-App verbinden und die Standard-PIN 000000 eingeben, dann btsnoop_hci.log (oder den Fehlerbericht als .zip/.gz) hier laden.</p>
     <div class="btns">
-      <button class="primary span2" id="btn-conn" data-t="btnConnect"></button>
+      <button class="primary span2" id="btn-conn" data-t="btnConnect">Verbinden</button>
     </div>
     <p class="hint" id="devinfo"></p>
     <p class="hint" id="enc-state"></p>
-    <p class="hint" data-t="controlsHint"></p>
+    <p class="hint" data-t="controlsHint">Web Bluetooth geht auf dem iPhone nur über die App Bluefy, auf Android oder Desktop über Chrome bzw. Edge. Beim ersten Mal fragt das System nach der Kopplung.</p>
   </div>
 
   <div class="card" id="live-card" hidden>
-    <div class="card-head"><h2 data-t="liveTitle"></h2></div>
+    <div class="card-head"><h2 data-t="liveTitle">Live-Werte vom Scooter</h2></div>
     <div class="grid" id="tiles">
-      <div class="tile" id="t-speed-tile"><b id="t-speed">-</b><small data-t="tSpeed"></small></div>
-      <div class="tile" id="t-max-tile"><b id="t-max">-</b><small data-t="tMax"></small></div>
-      <div class="tile" id="t-curr-tile"><b id="t-curr">-</b><small data-t="tCurr"></small></div>
-      <div class="tile" id="t-trip-tile"><b id="t-trip">-</b><small data-t="tTrip"></small></div>
-      <div class="tile" id="t-total-tile"><b id="t-total">-</b><small data-t="tTotal"></small></div>
-      <div class="tile" id="t-ride-tile"><b id="t-ride">-</b><small data-t="tRide"></small></div>
-      <div class="tile" id="t-lock-tile"><b id="t-lock">-</b><small data-t="tLock"></small></div>
-      <div class="tile" id="t-err-tile"><b id="t-err">-</b><small data-t="tErr"></small></div>
-      <div class="tile" id="t-fw-tile"><b id="t-fw">-</b><small data-t="tFw"></small></div>
+      <div class="tile" id="t-speed-tile"><b id="t-speed">-</b><small data-t="tSpeed">Tempo</small></div>
+      <div class="tile" id="t-max-tile"><b id="t-max">-</b><small data-t="tMax">Max-Tempo</small></div>
+      <div class="tile" id="t-curr-tile"><b id="t-curr">-</b><small data-t="tCurr">Strom</small></div>
+      <div class="tile" id="t-trip-tile"><b id="t-trip">-</b><small data-t="tTrip">Fahrt</small></div>
+      <div class="tile" id="t-total-tile"><b id="t-total">-</b><small data-t="tTotal">Gesamt</small></div>
+      <div class="tile" id="t-ride-tile"><b id="t-ride">-</b><small data-t="tRide">Fahrzeit</small></div>
+      <div class="tile" id="t-lock-tile"><b id="t-lock">-</b><small data-t="tLock">Sperre</small></div>
+      <div class="tile" id="t-err-tile"><b id="t-err">-</b><small data-t="tErr">Fehler</small></div>
+      <div class="tile" id="t-fw-tile"><b id="t-fw">-</b><small data-t="tFw">Firmware</small></div>
     </div>
-    <p class="hint" id="tiles-empty" data-t="tilesEmpty"></p>
-    <p class="hint" data-t="liveHint"></p>
+    <p class="hint" id="tiles-empty" data-t="tilesEmpty">Warte auf Daten vom Scooter. Jede Kachel erscheint, sobald ihr Wert zum ersten Mal ankommt.</p>
+    <p class="hint" data-t="liveHint">Die Live-Werte kommen direkt vom Scooter. Nicht jedes Modell liefert jedes Feld. Welche Register ein konkretes Modell nutzt, ist nicht für alle Modelle bewiesen. Die rohen Meldungen stehen als Hex im Log.</p>
   </div>
 
   <div class="card" id="batt-card" hidden>
-    <div class="card-head"><h2 data-t="battTitle"></h2><button type="button" class="help-btn" data-help="batt" aria-label="Info">?</button></div>
+    <div class="card-head"><h2 data-t="battTitle">Akku-Telemetrie</h2><button type="button" class="help-btn" data-help="batt" aria-label="Info">?</button></div>
     <div class="grid">
-      <div class="tile" id="t-batt-tile"><b id="t-batt">-</b><small data-t="tBatt"></small></div>
-      <div class="tile" id="t-volt-tile"><b id="t-volt">-</b><small data-t="tVolt"></small></div>
+      <div class="tile" id="t-batt-tile"><b id="t-batt">-</b><small data-t="tBatt">Akku %</small></div>
+      <div class="tile" id="t-volt-tile"><b id="t-volt">-</b><small data-t="tVolt">Spannung</small></div>
     </div>
-    <p class="hint" data-t="battHint"></p>
+    <p class="hint" data-t="battHint">Nur was der Roller meldet. Ein Strich bedeutet: dieser Wert kam noch nicht.</p>
   </div>
 
   <div class="card" id="more-card" hidden>
-    <div class="card-head"><h2 data-t="moreTitle"></h2><button type="button" class="help-btn" data-help="ctrl" aria-label="Info">?</button></div>
+    <div class="card-head"><h2 data-t="moreTitle">Einstellungen</h2><button type="button" class="help-btn" data-help="ctrl" aria-label="Info">?</button></div>
 
-    <h3 class="set-group" data-t="setgrpSpeed"></h3>
-    <label data-t="cSpeedLimit"></label>
+    <h3 class="set-group" data-t="setgrpSpeed">Tempo und Freischaltung</h3>
+    <label data-t="cSpeedLimit">Speed-Limit / Maximaltempo</label>
     <div class="set-row">
       <input type="number" id="speed-kmh" min="1" max="60" step="1" value="25">
       <select id="speed-target"></select>
     </div>
-    <div class="btns"><button class="span2" id="btn-setspeed" data-t="btnSetSpeed" disabled></button></div>
-    <p class="hint" data-t="speedNote"></p>
-    <label data-t="cLock"></label>
+    <div class="btns"><button class="span2" id="btn-setspeed" data-t="btnSetSpeed" disabled>Setzen</button></div>
+    <p class="hint" data-t="speedNote">Der Wert geht an das gewählte Geschwindigkeitsregister mit der Skalierung der App (z. B. MaxSpeed 0x7d = km/h * 1000 + 2000). Die Seite hat keine eigene Grenze.</p>
+    <label data-t="cLock">Sperre und Licht</label>
     <div class="btns">
-      <button id="btn-lock" data-t="btnLock" disabled></button>
-      <button id="btn-unlock" data-t="btnUnlock" disabled></button>
+      <button id="btn-lock" data-t="btnLock" disabled>Sperren</button>
+      <button id="btn-unlock" data-t="btnUnlock" disabled>Entsperren</button>
     </div>
 
-    <h3 class="set-group" data-t="setgrpGeneral"></h3>
-    <label data-t="cCruise"></label>
+    <h3 class="set-group" data-t="setgrpGeneral">Allgemein</h3>
+    <label data-t="cCruise">Tempomat / Limit-Modus</label>
     <div class="btns">
-      <button id="btn-cruise-on" data-t="btnOn" disabled></button>
-      <button id="btn-cruise-off" data-t="btnOff" disabled></button>
+      <button id="btn-cruise-on" data-t="btnOn" disabled>An</button>
+      <button id="btn-cruise-off" data-t="btnOff" disabled>Aus</button>
     </div>
-    <label data-t="cKick"></label>
+    <label data-t="cKick">Kickstart (Zero-Start)</label>
     <div class="btns">
-      <button id="btn-kick-on" data-t="btnZeroOn" disabled></button>
-      <button id="btn-kick-off" data-t="btnZeroOff" disabled></button>
+      <button id="btn-kick-on" data-t="btnZeroOn" disabled>Zero-Start an</button>
+      <button id="btn-kick-off" data-t="btnZeroOff" disabled>Zero-Start aus</button>
     </div>
     <div class="btns">
-      <button id="btn-light-on" data-t="btnLightOn" disabled></button>
-      <button id="btn-light-off" data-t="btnLightOff" disabled></button>
+      <button id="btn-light-on" data-t="btnLightOn" disabled>Licht an</button>
+      <button id="btn-light-off" data-t="btnLightOff" disabled>Licht aus</button>
     </div>
-    <label data-t="cBrakeLight"></label>
+    <label data-t="cBrakeLight">Bremslicht</label>
     <div class="btns">
-      <button id="btn-brake-on" data-t="btnOn" disabled></button>
-      <button id="btn-brake-off" data-t="btnOff" disabled></button>
+      <button id="btn-brake-on" data-t="btnOn" disabled>An</button>
+      <button id="btn-brake-off" data-t="btnOff" disabled>Aus</button>
     </div>
-    <label data-t="cHubLight"></label>
+    <label data-t="cHubLight">Nabenlicht</label>
     <div class="btns">
-      <button id="btn-hub-on" data-t="btnOn" disabled></button>
-      <button id="btn-hub-off" data-t="btnOff" disabled></button>
+      <button id="btn-hub-on" data-t="btnOn" disabled>An</button>
+      <button id="btn-hub-off" data-t="btnOff" disabled>Aus</button>
     </div>
-    <label data-t="cAmbient"></label>
+    <label data-t="cAmbient">Umgebungslicht</label>
     <div class="btns">
-      <button id="btn-amb-on" data-t="btnOn" disabled></button>
-      <button id="btn-amb-off" data-t="btnOff" disabled></button>
+      <button id="btn-amb-on" data-t="btnOn" disabled>An</button>
+      <button id="btn-amb-off" data-t="btnOff" disabled>Aus</button>
     </div>
-    <label data-t="cOverspeed"></label>
+    <label data-t="cOverspeed">Übergeschwindigkeits-Alarm</label>
     <div class="btns">
-      <button id="btn-alarm-on" data-t="btnOn" disabled></button>
-      <button id="btn-alarm-off" data-t="btnOff" disabled></button>
+      <button id="btn-alarm-on" data-t="btnOn" disabled>An</button>
+      <button id="btn-alarm-off" data-t="btnOff" disabled>Aus</button>
     </div>
-    <label data-t="cLockShutdown"></label>
+    <label data-t="cLockShutdown">Abschalten nach Sperren</label>
     <div class="btns">
-      <button id="btn-lsd-on" data-t="btnOn" disabled></button>
-      <button id="btn-lsd-off" data-t="btnOff" disabled></button>
+      <button id="btn-lsd-on" data-t="btnOn" disabled>An</button>
+      <button id="btn-lsd-off" data-t="btnOff" disabled>Aus</button>
     </div>
   </div>
 
   <div class="card" id="raw-card" hidden>
-    <div class="card-head"><h2 data-t="expertTitle"></h2><button type="button" class="help-btn" data-help="expert" aria-label="Info">?</button></div>
-    <p class="hint" data-t="expertHint"></p>
+    <div class="card-head"><h2 data-t="expertTitle">Experten-Modus</h2><button type="button" class="help-btn" data-help="expert" aria-label="Info">?</button></div>
+    <p class="hint" data-t="expertHint">Generisches Schreib- und Lesekommando. Wo die exakte Registernummer je Modell abweicht, hier Register plus Wert direkt setzen.</p>
 
-    <h3 class="set-group" data-t="eReg"></h3>
+    <h3 class="set-group" data-t="eReg">Register schreiben (CMD 0x20)</h3>
     <div class="set-row">
-      <label data-t="eRegNr"></label>
+      <label data-t="eRegNr">Register</label>
       <input type="number" id="reg-nr" min="0" max="255" value="30">
-      <label data-t="eRegVal"></label>
+      <label data-t="eRegVal">Wert</label>
       <input type="number" id="reg-val" min="0" max="65535" value="250">
     </div>
-    <div class="btns"><button class="span2" id="btn-writereg" data-t="btnWriteReg" disabled></button></div>
+    <div class="btns"><button class="span2" id="btn-writereg" data-t="btnWriteReg" disabled>Register schreiben</button></div>
 
-    <h3 class="set-group" data-t="eRead"></h3>
+    <h3 class="set-group" data-t="eRead">Register lesen (CMD 0x06)</h3>
     <div class="set-row">
-      <label data-t="eRegNr"></label>
+      <label data-t="eRegNr">Register</label>
       <input type="number" id="read-addr" min="0" max="255" value="26">
-      <label data-t="eCount"></label>
+      <label data-t="eCount">Anzahl</label>
       <input type="number" id="read-count" min="1" max="60" value="52">
     </div>
-    <div class="btns"><button class="span2" id="btn-readreg" data-t="btnReadReg" disabled></button></div>
+    <div class="btns"><button class="span2" id="btn-readreg" data-t="btnReadReg" disabled>Lesen anstoßen</button></div>
 
-    <h3 class="set-group" data-t="eRaw"></h3>
+    <h3 class="set-group" data-t="eRaw">Roh-Frame senden</h3>
     <input type="text" id="raw-hex" class="raw-in" placeholder="55 AA 04 20 03 1E FA 00">
     <div class="btns">
-      <button id="btn-raw" data-t="btnRaw" disabled></button>
-      <button id="btn-raw-plain" data-t="btnRawPlain" disabled></button>
+      <button id="btn-raw" data-t="btnRaw" disabled>Senden (Prüfsumme + XOR auto)</button>
+      <button id="btn-raw-plain" data-t="btnRawPlain" disabled>Roh senden (unverändert)</button>
     </div>
     <div class="set-row">
-      <label for="xor-mode" data-t="eXor"></label>
+      <label for="xor-mode" data-t="eXor">Modell-XOR</label>
       <select id="xor-mode">
-        <option value="0" data-t="xorNone"></option>
+        <option value="0" data-t="xorNone">keiner (0x00)</option>
         <option value="0x34">0x34</option>
         <option value="0x55">0x55</option>
         <option value="0x39">0x39</option>
@@ -189,51 +189,51 @@
       </select>
     </div>
 
-    <h3 class="set-group" data-t="eLight"></h3>
+    <h3 class="set-group" data-t="eLight">Licht-Modus (Register 0xf4)</h3>
     <div class="set-row">
-      <label data-t="eLightMode"></label>
+      <label data-t="eLightMode">Modus-Index</label>
       <input type="number" id="lightmode-idx" min="0" max="255" value="0">
-      <button id="btn-lightmode" data-t="btnSetLightMode" disabled></button>
+      <button id="btn-lightmode" data-t="btnSetLightMode" disabled>Licht-Modus setzen</button>
     </div>
 
-    <h3 class="set-group" data-t="eVersion"></h3>
-    <div class="btns"><button class="span2" id="btn-version" data-t="btnVersion" disabled></button></div>
+    <h3 class="set-group" data-t="eVersion">Version anfordern</h3>
+    <div class="btns"><button class="span2" id="btn-version" data-t="btnVersion" disabled>Version/Handshake senden</button></div>
   </div>
 
   <div class="card">
-    <h2 data-t="s6Title"></h2>
+    <h2 data-t="s6Title">Protokoll-Log</h2>
     <div class="log-opts">
       <div class="log-opt">
-        <span data-t="publicLogLabel"></span>
+        <span data-t="publicLogLabel">Öffentliches Log (Gerätename/ID anonymisieren)</span>
         <input type="checkbox" id="public-log" checked>
         <button type="button" class="help-btn" data-help="publiclog" aria-label="Info">?</button>
       </div>
       <div class="log-opt">
-        <span data-t="diagLogLabel"></span>
+        <span data-t="diagLogLabel">Diagnose-Log</span>
         <input type="checkbox" id="diag-log">
         <button type="button" class="help-btn" data-help="diaglog" aria-label="Info">?</button>
       </div>
     </div>
     <div class="btns">
-      <button type="button" id="btn-copy-log" data-t="btnCopyLog"></button>
-      <button type="button" id="btn-clear-log" data-t="btnClearLog"></button>
-      <button type="button" id="btn-save-log" class="span2" data-t="btnSaveLog"></button>
+      <button type="button" id="btn-copy-log" data-t="btnCopyLog">Kopieren</button>
+      <button type="button" id="btn-clear-log" data-t="btnClearLog">Leeren</button>
+      <button type="button" id="btn-save-log" class="span2" data-t="btnSaveLog">Speichern</button>
     </div>
     <pre id="log"></pre>
-    <p class="hint"><span class="log-tx" data-t="logTxLegend"></span>, <span class="log-rx" data-t="logRxLegend"></span></p>
+    <p class="hint"><span class="log-tx" data-t="logTxLegend">gesendet</span>, <span class="log-rx" data-t="logRxLegend">empfangen</span></p>
   </div>
 
   <footer class="foot">
     <span class="foot-links">
-      <a id="link-guide" href="GUIDE.de.md" data-doc="GUIDE" data-t="footGuide"></a>
-      <a href="https://github.com/Laufbursche42/is-unlock" target="_blank" rel="noopener" data-t="footSource"></a>
-      <a id="link-readme" href="README.md" data-doc="README" data-t="footReadme"></a>
-      <a id="link-disclaimer" href="#" data-t="footDisclaimer"></a>
-      <a id="link-license" href="LICENSE.de.md" data-doc="LICENSE" data-t="footLicense"></a>
-      <a id="link-privacy" href="PRIVACY.de.md" data-doc="PRIVACY" data-t="footPrivacy"></a>
-      <a id="link-trademarks" href="TRADEMARKS.de.md" data-doc="TRADEMARKS" data-t="footTrademarks"></a>
+      <a id="link-guide" href="GUIDE.de.md" data-doc="GUIDE" data-t="footGuide">Anleitung</a>
+      <a href="https://github.com/Laufbursche42/is-unlock" target="_blank" rel="noopener" data-t="footSource">Quellcode</a>
+      <a id="link-readme" href="README.md" data-doc="README" data-t="footReadme">Readme</a>
+      <a id="link-disclaimer" href="#" data-t="footDisclaimer">Haftungsausschluss</a>
+      <a id="link-license" href="LICENSE.de.md" data-doc="LICENSE" data-t="footLicense">Lizenz</a>
+      <a id="link-privacy" href="PRIVACY.de.md" data-doc="PRIVACY" data-t="footPrivacy">Datenschutz</a>
+      <a id="link-trademarks" href="TRADEMARKS.de.md" data-doc="TRADEMARKS" data-t="footTrademarks">Marken</a>
     </span>
-    <span class="foot-links"><span class="ver" id="build-ver"></span><a href="https://github.com/Laufbursche42/Laufbursche42/issues" target="_blank" rel="noopener" data-t="footIssue"></a></span>
+    <span class="foot-links"><span class="ver" id="build-ver"></span><a href="https://github.com/Laufbursche42/Laufbursche42/issues" target="_blank" rel="noopener" data-t="footIssue">Fehler melden</a></span>
     <a class="foot-copy" href="https://laufbursche42.github.io/Laufbursche42/" target="_blank" rel="noopener">Copyright (c) 2026 Laufbursche</a>
   </footer>
 </div>
@@ -245,7 +245,7 @@
   </div>
   <div class="doc-body" id="doc-body"></div>
   <div class="doc-foot">
-    <button type="button" id="doc-close" data-t="docClose"></button>
+    <button type="button" id="doc-close" data-t="docClose">Schließen</button>
   </div>
 </dialog>
 
@@ -256,24 +256,24 @@
   </div>
   <div class="doc-body"><p id="help-body"></p></div>
   <div class="doc-foot">
-    <button type="button" id="help-close" data-t="docClose"></button>
+    <button type="button" id="help-close" data-t="docClose">Schließen</button>
   </div>
 </dialog>
 
 <dialog id="confirm" aria-labelledby="confirm-title">
   <div class="doc-head">
-    <h3 id="confirm-title" data-t="confirmTitle"></h3>
+    <h3 id="confirm-title" data-t="confirmTitle">Bist du sicher?</h3>
     <button type="button" id="confirm-x">&times;</button>
   </div>
   <div class="doc-body"><p id="confirm-body"></p></div>
   <div class="doc-foot">
-    <button type="button" id="confirm-no" data-t="confirmCancel"></button>
-    <button type="button" id="confirm-ok" class="primary" data-t="confirmOk"></button>
+    <button type="button" id="confirm-no" data-t="confirmCancel">Abbrechen</button>
+    <button type="button" id="confirm-ok" class="primary" data-t="confirmOk">Trotzdem senden</button>
   </div>
 </dialog>
 
-<script src="report-footer.js?v=10"></script>
-<script src="i18n.js?v=10"></script>
-<script src="app.js?v=10"></script>
+<script src="report-footer.js?v=11"></script>
+<script src="i18n.js?v=11"></script>
+<script src="app.js?v=11"></script>
 </body>
 </html>
